@@ -1,0 +1,6 @@
+{
+  "name": "BAZARIO",
+  "description": "BAZARIO (বাজারিও) — Bangladesh's bilingual multi-vendor e-commerce marketplace with Customer Storefront, Seller Center, and Admin Control Panel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
