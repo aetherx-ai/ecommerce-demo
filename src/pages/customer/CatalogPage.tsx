@@ -1,16 +1,21 @@
-import React, { useMemo, useState } from 'react';
+import React, { Suspense, lazy, useMemo, useState } from 'react';
 import { Filter, RotateCcw, SlidersHorizontal, X } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { ProductCard } from '../../components/common/ProductCard';
-import { QuickViewModal } from '../../components/common/QuickViewModal';
 import { useBazario } from '../../contexts/BazarioContext';
 import { Product } from '../../types/bazario';
 import { formatNum, getText } from '../../utils/formatters';
 
+const QuickViewModal = lazy(() =>
+  import('../../components/common/QuickViewModal').then((m) => ({
+    default: m.QuickViewModal,
+  }))
+);
+
 export const CatalogPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
-  const { language, categories, sellers, products } = useBazario();
+  const { language, categories, sellers, products, getSellerById } = useBazario();
 
   const initialQuery = searchParams.get('q') ?? '';
   const initialSub = searchParams.get('sub') ?? '';
@@ -66,7 +71,7 @@ export const CatalogPage: React.FC = () => {
       if (onlyInStock && p.stock <= 0) return false;
 
       if (q) {
-        const sellerName = sellers.find((s) => s.id === p.sellerId)?.storeName ?? '';
+        const sellerName = getSellerById(p.sellerId)?.storeName ?? '';
         const match =
           p.name.en.toLowerCase().includes(q) ||
           p.name.bn.toLowerCase().includes(q) ||
@@ -105,7 +110,7 @@ export const CatalogPage: React.FC = () => {
     onlyInStock,
     sortBy,
     searchParams,
-    sellers,
+    getSellerById,
   ]);
 
   const resetFilters = () => {
@@ -338,11 +343,11 @@ export const CatalogPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setMobileFilterOpen(true)}
-                className="lg:hidden inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-md border border-[#E5E7EB] bg-[#F5F6FA] text-xs font-medium"
+                className="lg:hidden inline-flex items-center justify-center gap-1.5 px-3 py-2 min-h-[40px] rounded-md border border-[#E5E7EB] bg-[#F5F6FA] text-xs font-semibold shrink-0"
               >
                 <SlidersHorizontal className="w-4 h-4 text-[#F85606]" />
                 <span>{language === 'bn' ? 'ফিল্টার' : 'Filter'}</span>
@@ -352,7 +357,7 @@ export const CatalogPage: React.FC = () => {
                 aria-label="Sort products"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="min-h-[40px] px-3 py-2 rounded-md border border-[#E5E7EB] bg-white text-xs font-medium"
+                className="flex-1 sm:flex-none min-w-0 min-h-[40px] px-3 py-2 rounded-md border border-[#E5E7EB] bg-white text-xs font-medium"
               >
                 <option value="recommended">
                   {language === 'bn' ? 'বাছাইকৃত (Recommended)' : 'Recommended'}
@@ -392,7 +397,7 @@ export const CatalogPage: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4">
               {filteredProducts.map((p) => (
                 <ProductCard key={p.id} product={p} onQuickView={setQuickViewProduct} />
               ))}
@@ -433,10 +438,14 @@ export const CatalogPage: React.FC = () => {
         </div>
       )}
 
-      <QuickViewModal
-        product={quickViewProduct}
-        onClose={() => setQuickViewProduct(null)}
-      />
+      {quickViewProduct && (
+        <Suspense fallback={null}>
+          <QuickViewModal
+            product={quickViewProduct}
+            onClose={() => setQuickViewProduct(null)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

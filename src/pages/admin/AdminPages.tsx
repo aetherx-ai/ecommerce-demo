@@ -2,18 +2,25 @@ import React, { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Award,
+  Banknote,
   CheckCircle2,
+  Clock,
+  CreditCard,
   Download,
   Edit3,
   Eye,
+  Package,
   Plus,
   RotateCcw,
   Search,
+  ShoppingBag,
   Star,
   Store,
   Tag,
   Trash2,
   TrendingUp,
+  UserCheck,
+  Users,
   X,
   XCircle,
 } from 'lucide-react';
@@ -68,14 +75,22 @@ const statusPillClass = (status: OrderStatus): string => {
 export const AdminDashboardPage: React.FC = () => {
   const { language, orders, products, sellers, customers, categories } = useBazario();
 
-  const totalRevenue = useMemo(
-    () => orders.filter((o) => o.status !== 'Cancelled').reduce((s, o) => s + o.total, 0),
+  const validOrders = useMemo(
+    () => orders.filter((o) => o.status !== 'Cancelled'),
     [orders]
   );
+  const totalRevenue = useMemo(
+    () => validOrders.reduce((s, o) => s + o.total, 0),
+    [validOrders]
+  );
+  const avgOrderValue = validOrders.length > 0 ? Math.round(totalRevenue / validOrders.length) : 0;
   const pendingOrders = orders.filter(
     (o) => o.status !== 'Delivered' && o.status !== 'Cancelled'
   ).length;
+  const deliveredOrders = orders.filter((o) => o.status === 'Delivered').length;
   const pendingSellers = sellers.filter((s) => s.status === 'pending').length;
+  const approvedSellers = sellers.filter((s) => s.status === 'approved').length;
+  const pendingProducts = products.filter((p) => p.status === 'pending').length;
   const totalItemsSold = useMemo(
     () => products.reduce((s, p) => s + p.soldCount, 0),
     [products]
@@ -91,6 +106,7 @@ export const AdminDashboardPage: React.FC = () => {
     { label: 'Fri', rev: Math.round(totalRevenue * 0.21), orders: 38 },
   ];
   const maxRev = Math.max(...revenueSeries.map((r) => r.rev), 1);
+  const weeklySeriesTotal = revenueSeries.reduce((s, r) => s + r.rev, 0);
 
   const categoryBreakdown = useMemo(() => {
     const map = new Map<string, number>();
@@ -113,6 +129,10 @@ export const AdminDashboardPage: React.FC = () => {
   }, [orders, products, categories, language]);
 
   const maxCatRev = Math.max(...categoryBreakdown.map((c) => c.revenue), 1);
+  const totalCatRev = Math.max(
+    categoryBreakdown.reduce((s, c) => s + c.revenue, 0),
+    1
+  );
 
   const topProducts = useMemo(
     () => [...products].sort((a, b) => b.soldCount - a.soldCount).slice(0, 5),
@@ -132,42 +152,71 @@ export const AdminDashboardPage: React.FC = () => {
     {
       label: language === 'bn' ? 'মোট রাজস্ব (GMV)' : 'Total Revenue',
       value: formatBDT(totalRevenue, language),
+      sub: `${language === 'bn' ? 'গড় অর্ডার' : 'AOV'}: ${formatBDT(avgOrderValue, language)}`,
       accent: 'text-[#F85606]',
+      iconBg: 'bg-[#FFF4EE] text-[#F85606]',
+      icon: Banknote,
     },
     {
       label: language === 'bn' ? 'মোট অর্ডার' : 'Total Orders',
       value: formatNum(orders.length, language),
+      sub: `${formatNum(deliveredOrders, language)} ${language === 'bn' ? 'ডেলিভার্ড' : 'delivered'}`,
       accent: 'text-[#172337]',
+      iconBg: 'bg-[#EFF6FF] text-[#2563EB]',
+      icon: ShoppingBag,
     },
     {
       label: language === 'bn' ? 'মোট গ্রাহক' : 'Total Customers',
       value: formatNum(customers.length, language),
+      sub: language === 'bn' ? 'নিবন্ধিত ক্রেতা' : 'Registered buyers',
       accent: 'text-[#172337]',
+      iconBg: 'bg-[#F5F3FF] text-[#7C3AED]',
+      icon: Users,
     },
     {
       label: language === 'bn' ? 'মোট সেলার' : 'Total Sellers',
       value: formatNum(sellers.length, language),
+      sub: `${formatNum(approvedSellers, language)} ${language === 'bn' ? 'সক্রিয় স্টোর' : 'active stores'}`,
       accent: 'text-[#172337]',
+      iconBg: 'bg-[#ECFDF5] text-[#059669]',
+      icon: Store,
     },
     {
       label: language === 'bn' ? 'মোট পণ্য' : 'Total Products',
       value: formatNum(products.length, language),
+      sub:
+        pendingProducts > 0
+          ? `${formatNum(pendingProducts, language)} ${language === 'bn' ? 'অপেক্ষমাণ' : 'pending review'}`
+          : language === 'bn'
+          ? 'সব অনুমোদিত'
+          : 'Catalog healthy',
       accent: 'text-[#172337]',
+      iconBg: 'bg-[#F5F6FA] text-[#172337]',
+      icon: Package,
     },
     {
       label: language === 'bn' ? 'চলমান অর্ডার' : 'Pending Orders',
       value: formatNum(pendingOrders, language),
+      sub: language === 'bn' ? 'প্রসেসিং চলমান' : 'In fulfillment queue',
       accent: 'text-[#D97706]',
+      iconBg: 'bg-[#FEF3C7] text-[#D97706]',
+      icon: Clock,
     },
     {
       label: language === 'bn' ? 'সেলার আবেদন' : 'Pending Applications',
       value: formatNum(pendingSellers, language),
+      sub: pendingSellers > 0 ? (language === 'bn' ? 'পর্যালোচনা প্রয়োজন' : 'Needs review') : language === 'bn' ? 'সব সম্পন্ন' : 'All reviewed',
       accent: pendingSellers > 0 ? 'text-[#F85606]' : 'text-[#16A34A]',
+      iconBg: pendingSellers > 0 ? 'bg-[#FFF4EE] text-[#F85606]' : 'bg-[#DCFCE7] text-[#16A34A]',
+      icon: UserCheck,
     },
     {
       label: language === 'bn' ? 'বিক্রিত ইউনিট' : 'Total Items Sold',
       value: formatNum(totalItemsSold, language),
+      sub: language === 'bn' ? 'সর্বমোট বিক্রি' : 'Cumulative units',
       accent: 'text-[#16A34A]',
+      iconBg: 'bg-[#DCFCE7] text-[#16A34A]',
+      icon: TrendingUp,
     },
   ];
 
@@ -185,7 +234,7 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
           <Link
             to="/admin/seller-applications"
-            className="px-3.5 py-1.5 rounded-lg bg-[#F85606] text-white text-xs font-semibold hover:bg-[#D94802]"
+            className="px-3.5 py-1.5 rounded-lg bg-[#F85606] text-white text-xs font-semibold hover:bg-[#D94802] transition-colors"
           >
             {language === 'bn' ? 'আবেদন দেখুন' : 'Review Applications'}
           </Link>
@@ -193,76 +242,125 @@ export const AdminDashboardPage: React.FC = () => {
       )}
 
       {/* 8 KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {kpis.map((kpi) => (
-          <div key={kpi.label} className="bg-white border border-[#E5E7EB] rounded-xl p-4">
-            <p className="text-xs text-[#6B7280]">{kpi.label}</p>
-            <p className={`text-xl font-bold mt-1.5 tabular-nums ${kpi.accent}`}>{kpi.value}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {kpis.map((kpi) => {
+          const Icon = kpi.icon;
+          return (
+            <div
+              key={kpi.label}
+              className="bg-white border border-[#E5E7EB] hover:border-[#D1D5DB] rounded-xl p-3.5 sm:p-4 transition-colors"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-[11px] sm:text-xs font-medium text-[#6B7280] leading-snug">
+                  {kpi.label}
+                </p>
+                <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${kpi.iconBg}`}>
+                  <Icon className="w-4 h-4" />
+                </span>
+              </div>
+              <p className={`text-lg sm:text-xl font-bold mt-1.5 tabular-nums ${kpi.accent}`}>
+                {kpi.value}
+              </p>
+              <p className="text-[10px] sm:text-[11px] text-[#6B7280] mt-1 truncate">{kpi.sub}</p>
+            </div>
+          );
+        })}
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white border border-[#E5E7EB] rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold text-[#172337] flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-[#F85606]" />
-              <span>
-                {language === 'bn' ? 'সাপ্তাহিক মার্কেটপ্লেস বিক্রয়' : 'Weekly Marketplace Revenue'}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
+        <div className="lg:col-span-2 bg-white border border-[#E5E7EB] rounded-xl p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div>
+              <h2 className="text-sm font-bold text-[#172337] flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-[#F85606]" />
+                <span>
+                  {language === 'bn' ? 'সাপ্তাহিক মার্কেটপ্লেস বিক্রয়' : 'Weekly Marketplace Revenue'}
+                </span>
+              </h2>
+              <p className="text-[11px] text-[#6B7280] mt-0.5">
+                {language === 'bn' ? 'গত ৭ দিনের মোট লেনদেন প্রবণতা' : '7-day marketplace GMV & order velocity'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-md bg-[#FFF4EE] text-[#F85606] text-[11px] font-bold tabular-nums">
+                {formatBDT(weeklySeriesTotal, language)}
               </span>
-            </h2>
-            <span className="text-xs text-[#6B7280]">BDT (৳)</span>
+              <span className="text-[11px] font-medium text-[#6B7280]">BDT</span>
+            </div>
           </div>
-          <div className="h-52 flex items-end gap-3 pt-4">
+
+          <div className="relative h-52 flex items-end gap-2 sm:gap-3 pt-6">
+            {/* Horizontal gridlines */}
+            <div className="pointer-events-none absolute inset-x-0 top-6 bottom-6 flex flex-col justify-between">
+              <div className="border-t border-dashed border-[#E5E7EB]" />
+              <div className="border-t border-dashed border-[#E5E7EB]" />
+              <div className="border-t border-dashed border-[#E5E7EB]" />
+            </div>
+
             {revenueSeries.map((d) => {
               const pct = Math.max(12, Math.round((d.rev / maxRev) * 100));
               return (
-                <div key={d.label} className="flex-1 flex flex-col items-center gap-2">
-                  <span className="text-[10px] font-semibold text-[#4B5563] tabular-nums">
+                <div key={d.label} className="group relative flex-1 flex flex-col items-center gap-1.5 z-10">
+                  <div className="opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-0.5 rounded bg-[#172337] text-white text-[10px] font-semibold shadow-sm tabular-nums z-20">
+                    {formatBDT(d.rev, language)} · {d.orders} ord
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] font-semibold text-[#4B5563] tabular-nums truncate max-w-full">
                     {formatBDT(d.rev, language)}
                   </span>
-                  <div className="w-full h-36 bg-[#F5F6FA] rounded-lg flex items-end overflow-hidden">
+                  <div className="w-full h-36 bg-[#F5F6FA]/80 rounded-lg flex items-end overflow-hidden p-0.5">
                     <div
-                      className="w-full bg-[#172337] hover:bg-[#F85606] transition-colors rounded-t-md"
+                      className="w-full bg-gradient-to-t from-[#172337] to-[#2B3E5E] group-hover:from-[#F85606] group-hover:to-[#FF8A4C] transition-all rounded-t-md"
                       style={{ height: `${pct}%` }}
                     />
                   </div>
-                  <span className="text-[11px] font-medium text-[#6B7280]">{d.label}</span>
+                  <span className="text-[11px] font-semibold text-[#6B7280] group-hover:text-[#172337]">
+                    {d.label}
+                  </span>
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="bg-white border border-[#E5E7EB] rounded-xl p-5">
-          <h2 className="text-sm font-bold text-[#172337] mb-4">
-            {language === 'bn' ? 'ক্যাটাগরি অনুযায়ী বিক্রয়' : 'Sales by Category'}
-          </h2>
+        <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 sm:p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold text-[#172337]">
+              {language === 'bn' ? 'ক্যাটাগরি অনুযায়ী বিক্রয়' : 'Sales by Category'}
+            </h2>
+            <span className="text-[11px] text-[#6B7280]">
+              {language === 'bn' ? 'শীর্ষ ৬' : 'Top 6'}
+            </span>
+          </div>
           <div className="space-y-3.5">
-            {categoryBreakdown.map((cat) => (
-              <div key={cat.slug} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-[#172337] truncate">{cat.name}</span>
-                  <span className="font-semibold text-[#F85606] tabular-nums">
-                    {formatBDT(cat.revenue, language)}
-                  </span>
+            {categoryBreakdown.map((cat) => {
+              const barPct = Math.max(8, Math.round((cat.revenue / maxCatRev) * 100));
+              const sharePct = Math.round((cat.revenue / totalCatRev) * 100);
+              return (
+                <div key={cat.slug} className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-medium text-[#172337] truncate">{cat.name}</span>
+                    <span className="font-semibold text-[#F85606] tabular-nums shrink-0">
+                      {formatBDT(cat.revenue, language)}{' '}
+                      <span className="text-[10px] font-medium text-[#9CA3AF]">({sharePct}%)</span>
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-[#F5F6FA] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#F85606] to-[#FF8A4C] rounded-full transition-all"
+                      style={{ width: `${barPct}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="w-full h-2 bg-[#F5F6FA] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[#F85606] rounded-full"
-                    style={{ width: `${Math.max(8, Math.round((cat.revenue / maxCatRev) * 100))}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
 
       {/* Top Products & Top Sellers */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white border border-[#E5E7EB] rounded-xl p-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+        <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 sm:p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-[#172337]">
               {language === 'bn' ? 'সেরা বিক্রিত পণ্য' : 'Top-Selling Products'}
@@ -272,10 +370,13 @@ export const AdminDashboardPage: React.FC = () => {
             </Link>
           </div>
           <div className="divide-y divide-[#E5E7EB]">
-            {topProducts.map((p) => (
+            {topProducts.map((p, idx) => (
               <div key={p.id} className="py-2.5 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-[#F5F6FA] shrink-0">
+                  <span className="w-5 text-[11px] font-bold text-[#9CA3AF] tabular-nums shrink-0">
+                    #{idx + 1}
+                  </span>
+                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-[#F5F6FA] border border-[#E5E7EB] shrink-0">
                     <ResilientImage src={p.images[0]} alt={p.name.en} className="w-full h-full object-cover" />
                   </div>
                   <div className="min-w-0">
@@ -283,7 +384,10 @@ export const AdminDashboardPage: React.FC = () => {
                       {getText(p.name, language)}
                     </p>
                     <p className="text-[11px] text-[#6B7280] tabular-nums">
-                      {formatNum(p.soldCount, language)} {language === 'bn' ? 'বিক্রিত' : 'sold'} · Stock: {p.stock}
+                      {formatNum(p.soldCount, language)} {language === 'bn' ? 'বিক্রিত' : 'sold'} ·{' '}
+                      <span className={p.stock <= 5 ? 'text-[#DC2626] font-semibold' : ''}>
+                        Stock: {p.stock}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -295,7 +399,7 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white border border-[#E5E7EB] rounded-xl p-5">
+        <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 sm:p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-[#172337]">
               {language === 'bn' ? 'শীর্ষ সেলার স্টোর' : 'Top-Performing Sellers'}
@@ -309,13 +413,16 @@ export const AdminDashboardPage: React.FC = () => {
               <div key={s.id} className="py-2.5 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div
-                    className="w-9 h-9 rounded-lg text-white font-bold text-xs flex items-center justify-center shrink-0"
+                    className="w-9 h-9 rounded-lg text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs"
                     style={{ backgroundColor: s.bannerColor }}
                   >
                     {s.logoInitials}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-[#172337] truncate">{s.storeName}</p>
+                    <p className="text-xs font-semibold text-[#172337] truncate flex items-center gap-1">
+                      <span className="truncate">{s.storeName}</span>
+                      {s.verified && <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A] shrink-0" />}
+                    </p>
                     <p className="text-[11px] text-[#6B7280] truncate">{s.businessCategory}</p>
                   </div>
                 </div>
@@ -333,15 +440,43 @@ export const AdminDashboardPage: React.FC = () => {
 
       {/* Recent Transactions */}
       <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-[#E5E7EB] flex items-center justify-between">
+        <div className="px-4 sm:px-5 py-4 border-b border-[#E5E7EB] flex items-center justify-between gap-2">
           <h2 className="text-sm font-bold text-[#172337]">
             {language === 'bn' ? 'সাম্প্রতিক লেনদেন ও অর্ডার' : 'Recent Marketplace Orders'}
           </h2>
-          <Link to="/admin/orders" className="text-xs font-semibold text-[#F85606] hover:underline">
+          <Link to="/admin/orders" className="text-xs font-semibold text-[#F85606] hover:underline shrink-0">
             {language === 'bn' ? 'অর্ডার ম্যানেজমেন্ট →' : 'Manage Orders →'}
           </Link>
         </div>
-        <div className="overflow-x-auto">
+
+        {/* Mobile Cards */}
+        <div className="md:hidden divide-y divide-[#E5E7EB]">
+          {orders.slice(0, 6).map((o) => (
+            <div key={o.id} className="p-4 space-y-2 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono font-bold text-[#172337]">#{o.id}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${statusPillClass(o.status)}`}>
+                  {o.status}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold text-[#172337] truncate">{o.customerName}</p>
+                  <p className="text-[11px] text-[#6B7280]">
+                    {o.address.district} · {o.paymentMethod}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="font-bold text-[#F85606] tabular-nums">{formatBDT(o.total, language)}</p>
+                  <p className="text-[10px] text-[#9CA3AF] tabular-nums">{o.createdAt}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-[#F5F6FA] border-b border-[#E5E7EB] text-[#6B7280]">
               <tr>
@@ -425,7 +560,7 @@ export const AdminProductsPage: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-[#172337]">
             {language === 'bn' ? 'পণ্য মডারেশন ও ক্যাটালগ' : 'Marketplace Product Moderation'}
@@ -435,42 +570,129 @@ export const AdminProductsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial">
             <Search className="w-3.5 h-3.5 text-[#9CA3AF] absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={language === 'bn' ? 'পণ্য বা SKU খুঁজুন...' : 'Search product or SKU...'}
-              className="pl-8 pr-3 py-2 text-xs bg-white border border-[#E5E7EB] rounded-lg w-52"
+              className="pl-8 pr-3 py-2 text-xs bg-white border border-[#E5E7EB] rounded-lg w-full sm:w-52 focus:outline-none focus:border-[#F85606]"
             />
           </div>
-          <select
-            value={catFilter}
-            onChange={(e) => setCatFilter(e.target.value)}
-            className="px-3 py-2 text-xs bg-white border border-[#E5E7EB] rounded-lg"
-          >
-            <option value="all">{language === 'bn' ? 'সকল ক্যাটাগরি' : 'All Categories'}</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.slug}>
-                {getText(c.name, language)}
-              </option>
-            ))}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as 'all' | ProductStatus)}
-            className="px-3 py-2 text-xs bg-white border border-[#E5E7EB] rounded-lg"
-          >
-            <option value="all">{language === 'bn' ? 'সকল স্ট্যাটাস' : 'All Statuses'}</option>
-            <option value="approved">Approved</option>
-            <option value="pending">Pending</option>
-            <option value="rejected">Rejected</option>
-          </select>
+          <div className="grid grid-cols-2 sm:flex gap-2">
+            <select
+              value={catFilter}
+              onChange={(e) => setCatFilter(e.target.value)}
+              className="px-3 py-2 text-xs bg-white border border-[#E5E7EB] rounded-lg min-w-0"
+            >
+              <option value="all">{language === 'bn' ? 'সকল ক্যাটাগরি' : 'All Categories'}</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.slug}>
+                  {getText(c.name, language)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | ProductStatus)}
+              className="px-3 py-2 text-xs bg-white border border-[#E5E7EB] rounded-lg min-w-0"
+            >
+              <option value="all">{language === 'bn' ? 'সকল স্ট্যাটাস' : 'All Statuses'}</option>
+              <option value="approved">Approved</option>
+              <option value="pending">Pending</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-x-auto">
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-2.5">
+        {filtered.map((p) => {
+          const seller = getSellerById(p.sellerId);
+          return (
+            <div key={p.id} className="bg-white border border-[#E5E7EB] rounded-xl p-3.5 space-y-3 text-xs">
+              <div className="flex items-start gap-3">
+                <div className="w-14 h-14 rounded-lg overflow-hidden bg-[#F5F6FA] border border-[#E5E7EB] shrink-0">
+                  <ResilientImage src={p.images[0]} alt={p.name.en} className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-[#172337] line-clamp-2">{getText(p.name, language)}</p>
+                  <p className="text-[11px] text-[#6B7280] truncate mt-0.5">
+                    {seller?.storeName ?? 'Unknown'} · <span className="font-mono">{p.sku}</span>
+                  </p>
+                  <div className="flex items-center gap-2.5 mt-1.5">
+                    <span className="font-bold text-[#F85606] tabular-nums">
+                      {formatBDT(p.discountedPrice, language)}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums ${
+                        p.stock === 0
+                          ? 'bg-[#FEE2E2] text-[#991B1B]'
+                          : p.stock <= 5
+                          ? 'bg-[#FEF3C7] text-[#92400E]'
+                          : 'bg-[#F5F6FA] text-[#4B5563]'
+                      }`}
+                    >
+                      Stock: {p.stock}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2.5 border-t border-[#E5E7EB] flex items-center justify-between gap-2">
+                <select
+                  value={p.status}
+                  onChange={(e) => updateProductStatus(p.id, e.target.value as ProductStatus)}
+                  className={`px-2.5 py-1.5 rounded-md text-[11px] font-semibold border border-[#E5E7EB] ${
+                    p.status === 'approved'
+                      ? 'bg-[#DCFCE7] text-[#166534]'
+                      : p.status === 'pending'
+                      ? 'bg-[#FEF3C7] text-[#92400E]'
+                      : 'bg-[#FEE2E2] text-[#991B1B]'
+                  }`}
+                >
+                  <option value="approved">approved</option>
+                  <option value="pending">pending</option>
+                  <option value="rejected">rejected</option>
+                </select>
+                <div className="flex items-center gap-1.5">
+                  {p.status !== 'approved' && (
+                    <button
+                      type="button"
+                      onClick={() => updateProductStatus(p.id, 'approved')}
+                      className="p-1.5 rounded-md bg-[#DCFCE7] text-[#166534]"
+                      title="Approve product"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => openEdit(p)}
+                    className="p-1.5 rounded-md border border-[#E5E7EB] hover:border-[#172337]"
+                    title="Edit price/stock"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteSellerProduct(p.id)}
+                    className="p-1.5 rounded-md border border-[#E5E7EB] text-[#DC2626] hover:bg-[#FEE2E2]"
+                    title="Delete product"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-white border border-[#E5E7EB] rounded-xl overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead className="bg-[#F5F6FA] border-b border-[#E5E7EB] text-[#6B7280]">
             <tr>
@@ -489,7 +711,7 @@ export const AdminProductsPage: React.FC = () => {
                 <tr key={p.id} className="hover:bg-[#F9FAFB]">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-[#F5F6FA] shrink-0">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-[#F5F6FA] border border-[#E5E7EB] shrink-0">
                         <ResilientImage src={p.images[0]} alt={p.name.en} className="w-full h-full object-cover" />
                       </div>
                       <div className="min-w-0">
@@ -505,7 +727,22 @@ export const AdminProductsPage: React.FC = () => {
                     {formatBDT(p.discountedPrice, language)}
                   </td>
                   <td className="px-4 py-3 tabular-nums">
-                    <span className={p.stock <= 5 ? 'text-[#DC2626] font-bold' : ''}>{p.stock}</span>
+                    <span
+                      className={`inline-flex items-center gap-1 font-semibold ${
+                        p.stock === 0
+                          ? 'text-[#DC2626]'
+                          : p.stock <= 5
+                          ? 'text-[#D97706]'
+                          : 'text-[#172337]'
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          p.stock === 0 ? 'bg-[#DC2626]' : p.stock <= 5 ? 'bg-[#F59E0B]' : 'bg-[#16A34A]'
+                        }`}
+                      />
+                      {p.stock}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <select
@@ -526,6 +763,26 @@ export const AdminProductsPage: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="inline-flex items-center gap-1.5">
+                      {p.status !== 'approved' && (
+                        <button
+                          type="button"
+                          onClick={() => updateProductStatus(p.id, 'approved')}
+                          className="p-1.5 rounded border border-[#BBF7D0] bg-[#DCFCE7] text-[#166534] hover:bg-[#BBF7D0]"
+                          title="Quick Approve"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {p.status === 'pending' && (
+                        <button
+                          type="button"
+                          onClick={() => updateProductStatus(p.id, 'rejected')}
+                          className="p-1.5 rounded border border-[#FECACA] bg-[#FEE2E2] text-[#991B1B] hover:bg-[#FECACA]"
+                          title="Quick Reject"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => openEdit(p)}
@@ -553,7 +810,7 @@ export const AdminProductsPage: React.FC = () => {
 
       {editing && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-sm w-full p-5 space-y-4">
+          <div className="bg-white rounded-xl max-w-sm w-full max-h-[90vh] overflow-y-auto p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-[#172337]">Edit Product Price & Stock</h3>
               <button type="button" onClick={() => setEditing(null)}>
@@ -766,34 +1023,56 @@ export const AdminCategoriesPage: React.FC = () => {
 export const AdminSellersPage: React.FC = () => {
   const { language, sellers, products, updateSellerStatus, setActiveSellerId, setRole } = useBazario();
   const [filter, setFilter] = useState<'all' | SellerStatus>('all');
+  const [query, setQuery] = useState('');
 
-  const visible = sellers.filter((s) => filter === 'all' || s.status === filter);
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return sellers.filter((s) => {
+      if (filter !== 'all' && s.status !== filter) return false;
+      if (!q) return true;
+      return (
+        s.storeName.toLowerCase().includes(q) ||
+        s.ownerName.toLowerCase().includes(q) ||
+        s.businessCategory.toLowerCase().includes(q)
+      );
+    });
+  }, [sellers, filter, query]);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-[#172337]">
             {language === 'bn' ? 'সকল সেলার ম্যানেজমেন্ট' : 'Marketplace Sellers'}
           </h1>
           <p className="text-xs text-[#6B7280]">{visible.length} stores</p>
         </div>
-        <div className="flex items-center gap-2 text-xs">
-          {(['all', 'approved', 'pending', 'suspended', 'rejected'] as const).map((st) => (
-            <button
-              key={st}
-              type="button"
-              onClick={() => setFilter(st)}
-              className={`px-3 py-1.5 rounded-lg capitalize font-medium border ${
-                filter === st
-                  ? 'bg-[#172337] text-white border-[#172337]'
-                  : 'bg-white text-[#4B5563] border-[#E5E7EB]'
-              }`}
-            >
-              {st}
-            </button>
-          ))}
+        <div className="relative w-full sm:w-56">
+          <Search className="w-3.5 h-3.5 text-[#9CA3AF] absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={language === 'bn' ? 'স্টোর বা মালিক খুঁজুন...' : 'Search store or owner...'}
+            className="pl-8 pr-3 py-2 text-xs bg-white border border-[#E5E7EB] rounded-lg w-full focus:outline-none focus:border-[#F85606]"
+          />
         </div>
+      </div>
+
+      <div className="flex items-center gap-2 text-xs overflow-x-auto no-scrollbar pb-1">
+        {(['all', 'approved', 'pending', 'suspended', 'rejected'] as const).map((st) => (
+          <button
+            key={st}
+            type="button"
+            onClick={() => setFilter(st)}
+            className={`px-3 py-1.5 rounded-lg capitalize font-medium border whitespace-nowrap shrink-0 transition-colors ${
+              filter === st
+                ? 'bg-[#172337] text-white border-[#172337]'
+                : 'bg-white text-[#4B5563] border-[#E5E7EB] hover:border-[#172337]'
+            }`}
+          >
+            {st}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1048,7 +1327,7 @@ export const AdminOrdersPage: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-[#172337]">
             {language === 'bn' ? 'অর্ডার ম্যানেজমেন্ট' : 'Marketplace Orders'}
@@ -1056,40 +1335,117 @@ export const AdminOrdersPage: React.FC = () => {
           <p className="text-xs text-[#6B7280]">{filtered.length} orders</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial">
             <Search className="w-3.5 h-3.5 text-[#9CA3AF] absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Order ID, name, phone..."
-              className="pl-8 pr-3 py-2 text-xs bg-white border border-[#E5E7EB] rounded-lg w-52"
+              className="pl-8 pr-3 py-2 text-xs bg-white border border-[#E5E7EB] rounded-lg w-full sm:w-52 focus:outline-none focus:border-[#F85606]"
             />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as 'all' | OrderStatus)}
-            className="px-3 py-2 text-xs bg-white border border-[#E5E7EB] rounded-lg"
-          >
-            <option value="all">All Statuses</option>
-            {ORDER_STATUSES.map((st) => (
-              <option key={st} value={st}>
-                {st}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={exportCsv}
-            className="px-3 py-2 rounded-lg border border-[#E5E7EB] bg-white text-xs font-semibold text-[#172337] inline-flex items-center gap-1.5 hover:border-[#F85606]"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>CSV</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | OrderStatus)}
+              className="flex-1 sm:flex-initial px-3 py-2 text-xs bg-white border border-[#E5E7EB] rounded-lg"
+            >
+              <option value="all">All Statuses</option>
+              {ORDER_STATUSES.map((st) => (
+                <option key={st} value={st}>
+                  {st}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="px-3 py-2 rounded-lg border border-[#E5E7EB] bg-white text-xs font-semibold text-[#172337] inline-flex items-center gap-1.5 hover:border-[#F85606] shrink-0"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>CSV</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-x-auto">
+      {/* Quick Status Strip */}
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 text-xs">
+        <button
+          type="button"
+          onClick={() => setStatusFilter('all')}
+          className={`px-3 py-1.5 rounded-lg border font-medium whitespace-nowrap shrink-0 ${
+            statusFilter === 'all'
+              ? 'bg-[#172337] text-white border-[#172337]'
+              : 'bg-white text-[#4B5563] border-[#E5E7EB]'
+          }`}
+        >
+          All ({orders.length})
+        </button>
+        {ORDER_STATUSES.map((st) => {
+          const count = orders.filter((o) => o.status === st).length;
+          return (
+            <button
+              key={st}
+              type="button"
+              onClick={() => setStatusFilter(st)}
+              className={`px-3 py-1.5 rounded-lg border font-medium whitespace-nowrap shrink-0 ${
+                statusFilter === st
+                  ? 'bg-[#F85606] text-white border-[#F85606]'
+                  : 'bg-white text-[#4B5563] border-[#E5E7EB]'
+              }`}
+            >
+              {st} ({count})
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-2.5">
+        {filtered.map((o) => (
+          <div key={o.id} className="bg-white border border-[#E5E7EB] rounded-xl p-3.5 space-y-2.5 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <span className="font-mono font-bold text-[#172337]">#{o.id}</span>
+                <span className="text-[11px] text-[#9CA3AF] ml-2">{o.createdAt}</span>
+              </div>
+              <span className="font-bold text-[#F85606] tabular-nums">{formatBDT(o.total, language)}</span>
+            </div>
+            <div>
+              <p className="font-semibold text-[#172337]">{o.customerName}</p>
+              <p className="text-[11px] text-[#6B7280]">
+                {o.phone} · {o.address.upazila}, {o.address.district} · {o.paymentMethod}
+              </p>
+            </div>
+            <div className="pt-2 border-t border-[#E5E7EB] flex items-center justify-between gap-2">
+              <select
+                value={o.status}
+                onChange={(e) => updateOrderStatus(o.id, e.target.value as OrderStatus)}
+                className={`px-2.5 py-1.5 rounded-md text-[11px] font-semibold border border-[#E5E7EB] ${statusPillClass(o.status)}`}
+              >
+                {ORDER_STATUSES.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setSelectedOrder(o)}
+                className="px-3 py-1.5 rounded-md border border-[#E5E7EB] font-semibold text-[#172337] inline-flex items-center gap-1"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>{language === 'bn' ? 'বিস্তারিত' : 'Inspect'}</span>
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-white border border-[#E5E7EB] rounded-xl overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead className="bg-[#F5F6FA] border-b border-[#E5E7EB] text-[#6B7280]">
             <tr>
@@ -1148,7 +1504,7 @@ export const AdminOrdersPage: React.FC = () => {
 
       {selectedOrder && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6 space-y-4 text-xs">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[88vh] overflow-y-auto p-5 sm:p-6 space-y-4 text-xs">
             <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-3">
               <div>
                 <h3 className="text-base font-bold text-[#172337] font-mono">
@@ -1161,7 +1517,7 @@ export const AdminOrdersPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 bg-[#F5F6FA] p-3.5 rounded-xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[#F5F6FA] p-3.5 rounded-xl">
               <div>
                 <p className="text-[#6B7280]">Customer</p>
                 <p className="font-semibold text-[#172337]">{selectedOrder.customerName}</p>
@@ -1179,10 +1535,10 @@ export const AdminOrdersPage: React.FC = () => {
             <div className="divide-y divide-[#E5E7EB]">
               {selectedOrder.items.map((item, idx) => (
                 <div key={idx} className="py-2.5 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <img src={item.image} alt="" className="w-10 h-10 rounded object-cover" />
-                    <div>
-                      <p className="font-semibold text-[#172337]">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <img src={item.image} alt="" className="w-10 h-10 rounded object-cover shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[#172337] truncate">
                         {getText(item.productName, language)}
                       </p>
                       <p className="text-[#6B7280]">
@@ -1190,7 +1546,7 @@ export const AdminOrdersPage: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  <span className="font-bold tabular-nums">
+                  <span className="font-bold tabular-nums shrink-0">
                     {formatBDT(item.unitPrice * item.quantity, language)}
                   </span>
                 </div>
@@ -1230,6 +1586,28 @@ export const AdminOrdersPage: React.FC = () => {
 export const AdminCustomersPage: React.FC = () => {
   const { language, customers, orders } = useBazario();
   const [selected, setSelected] = useState<Customer | null>(null);
+  const [query, setQuery] = useState('');
+
+  const filteredCustomers = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.phone.includes(q) ||
+        c.email.toLowerCase().includes(q) ||
+        c.city.toLowerCase().includes(q)
+    );
+  }, [customers, query]);
+
+  const totalCustomerSpend = useMemo(
+    () => customers.reduce((s, c) => s + c.totalSpent, 0),
+    [customers]
+  );
+  const totalCustomerOrders = useMemo(
+    () => customers.reduce((s, c) => s + c.totalOrders, 0),
+    [customers]
+  );
 
   const selectedOrders = useMemo(
     () => (selected ? orders.filter((o) => o.customerId === selected.id) : []),
@@ -1238,11 +1616,80 @@ export const AdminCustomersPage: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-bold text-[#172337]">
-        {language === 'bn' ? 'গ্রাহক তালিকা' : 'Marketplace Customers'} ({customers.length})
-      </h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-[#172337]">
+            {language === 'bn' ? 'গ্রাহক তালিকা' : 'Marketplace Customers'} ({filteredCustomers.length})
+          </h1>
+          <p className="text-xs text-[#6B7280]">
+            {language === 'bn' ? 'ক্রেতা ডিরেক্টরি ও ক্রয় ইতিহাস' : 'Customer directory & lifetime purchase history'}
+          </p>
+        </div>
+        <div className="relative w-full sm:w-56">
+          <Search className="w-3.5 h-3.5 text-[#9CA3AF] absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={language === 'bn' ? 'নাম, ফোন বা শহর...' : 'Search name, phone, city...'}
+            className="pl-8 pr-3 py-2 text-xs bg-white border border-[#E5E7EB] rounded-lg w-full focus:outline-none focus:border-[#F85606]"
+          />
+        </div>
+      </div>
 
-      <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-x-auto">
+      {/* Customer Summary Strip */}
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
+        <div className="bg-white border border-[#E5E7EB] rounded-xl p-3 sm:p-4">
+          <p className="text-[11px] text-[#6B7280]">{language === 'bn' ? 'মোট গ্রাহক' : 'Customers'}</p>
+          <p className="text-base sm:text-xl font-bold text-[#172337] mt-0.5 tabular-nums">
+            {formatNum(customers.length, language)}
+          </p>
+        </div>
+        <div className="bg-white border border-[#E5E7EB] rounded-xl p-3 sm:p-4">
+          <p className="text-[11px] text-[#6B7280]">{language === 'bn' ? 'মোট অর্ডার' : 'Total Orders'}</p>
+          <p className="text-base sm:text-xl font-bold text-[#172337] mt-0.5 tabular-nums">
+            {formatNum(totalCustomerOrders, language)}
+          </p>
+        </div>
+        <div className="bg-white border border-[#E5E7EB] rounded-xl p-3 sm:p-4">
+          <p className="text-[11px] text-[#6B7280]">{language === 'bn' ? 'মোট খরচ' : 'Lifetime Spend'}</p>
+          <p className="text-base sm:text-xl font-bold text-[#F85606] mt-0.5 tabular-nums truncate">
+            {formatBDT(totalCustomerSpend, language)}
+          </p>
+        </div>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-2.5">
+        {filteredCustomers.map((c) => (
+          <div key={c.id} className="bg-white border border-[#E5E7EB] rounded-xl p-3.5 space-y-2 text-xs">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-bold text-[#172337] truncate">{c.name}</p>
+                <p className="text-[11px] font-mono text-[#6B7280]">{c.phone} · {c.city}</p>
+                <p className="text-[11px] text-[#6B7280] truncate">{c.email}</p>
+              </div>
+              <span className="font-bold text-[#F85606] tabular-nums shrink-0">
+                {formatBDT(c.totalSpent, language)}
+              </span>
+            </div>
+            <div className="pt-2 border-t border-[#E5E7EB] flex items-center justify-between">
+              <span className="text-[11px] text-[#6B7280] tabular-nums">
+                {c.totalOrders} orders
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelected(c)}
+                className="px-3 py-1.5 rounded-md border border-[#E5E7EB] hover:border-[#F85606] font-semibold text-[#172337]"
+              >
+                History
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-white border border-[#E5E7EB] rounded-xl overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead className="bg-[#F5F6FA] border-b border-[#E5E7EB] text-[#6B7280]">
             <tr>
@@ -1256,7 +1703,7 @@ export const AdminCustomersPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#E5E7EB]">
-            {customers.map((c) => (
+            {filteredCustomers.map((c) => (
               <tr key={c.id} className="hover:bg-[#F9FAFB]">
                 <td className="px-4 py-3 font-semibold text-[#172337]">{c.name}</td>
                 <td className="px-4 py-3 font-mono">{c.phone}</td>
@@ -1283,7 +1730,7 @@ export const AdminCustomersPage: React.FC = () => {
 
       {selected && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 text-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-5 space-y-4 text-xs">
             <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-3">
               <div>
                 <h3 className="text-sm font-bold text-[#172337]">{selected.name}</h3>
@@ -1336,6 +1783,10 @@ export const AdminPaymentsPage: React.FC = () => {
     const total = list.reduce((s, o) => s + o.total, 0);
     return { method: m, count: list.length, total };
   });
+  const grandTotal = Math.max(
+    summaries.reduce((s, item) => s + item.total, 0),
+    1
+  );
 
   return (
     <div className="space-y-6">
@@ -1350,21 +1801,56 @@ export const AdminPaymentsPage: React.FC = () => {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {summaries.map((s) => (
-          <div key={s.method} className="bg-white border border-[#E5E7EB] rounded-xl p-4">
-            <p className="text-xs font-semibold text-[#6B7280]">{s.method}</p>
-            <p className="text-lg font-bold text-[#172337] mt-1 tabular-nums">
-              {formatBDT(s.total, language)}
-            </p>
-            <p className="text-[11px] text-[#6B7280] mt-0.5 tabular-nums">
-              {s.count} orders
-            </p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        {summaries.map((s) => {
+          const sharePct = Math.round((s.total / grandTotal) * 100);
+          return (
+            <div key={s.method} className="bg-white border border-[#E5E7EB] rounded-xl p-3.5 sm:p-4 space-y-2">
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-[11px] sm:text-xs font-semibold text-[#6B7280] truncate">{s.method}</p>
+                <CreditCard className="w-3.5 h-3.5 text-[#F85606] shrink-0" />
+              </div>
+              <p className="text-base sm:text-lg font-bold text-[#172337] tabular-nums">
+                {formatBDT(s.total, language)}
+              </p>
+              <div className="w-full h-1.5 bg-[#F5F6FA] rounded-full overflow-hidden">
+                <div className="h-full bg-[#F85606] rounded-full" style={{ width: `${sharePct}%` }} />
+              </div>
+              <p className="text-[11px] text-[#6B7280] tabular-nums">
+                {s.count} orders ({sharePct}%)
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-2.5">
+        {orders.map((o) => (
+          <div key={o.id} className="bg-white border border-[#E5E7EB] rounded-xl p-3.5 space-y-1.5 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono font-bold text-[#172337]">#{o.id}</span>
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${statusPillClass(o.status)}`}>
+                {o.status}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-medium text-[#172337]">{o.paymentMethod}</p>
+                <p className="text-[11px] font-mono text-[#6B7280] truncate">
+                  {o.paymentSimulatedRef ?? 'COD-PAY-ON-DELIVERY'}
+                </p>
+              </div>
+              <span className="font-bold text-[#F85606] tabular-nums shrink-0">
+                {formatBDT(o.total, language)}
+              </span>
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-x-auto">
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-white border border-[#E5E7EB] rounded-xl overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead className="bg-[#F5F6FA] border-b border-[#E5E7EB] text-[#6B7280]">
             <tr>
@@ -1410,7 +1896,7 @@ export const AdminCouponsPage: React.FC = () => {
   const [value, setValue] = useState('15');
   const [minOrder, setMinOrder] = useState('1000');
   const [expiresAt, setExpiresAt] = useState('2026-12-31');
-  const [usageLimit, setUsageLimit] = useState('500');
+  const [usageLimit] = useState('500');
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1441,54 +1927,121 @@ export const AdminCouponsPage: React.FC = () => {
         {language === 'bn' ? 'কুপন ও প্রোমো কোড' : 'Coupons & Promo Codes'}
       </h1>
 
-      <form onSubmit={handleCreate} className="bg-white border border-[#E5E7EB] rounded-xl p-5 grid grid-cols-2 sm:grid-cols-6 gap-3 text-xs">
-        <input
-          required
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="CODE (e.g. POHELA20)"
-          className="px-3 py-2 border border-[#E5E7EB] rounded-lg uppercase font-mono"
-        />
-        <select
-          value={type}
-          onChange={(e) => setType(e.target.value as 'percentage' | 'fixed')}
-          className="px-3 py-2 border border-[#E5E7EB] rounded-lg bg-white"
-        >
-          <option value="percentage">Percentage (%)</option>
-          <option value="fixed">Fixed (৳)</option>
-        </select>
-        <input
-          type="number"
-          min={1}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Discount Value"
-          className="px-3 py-2 border border-[#E5E7EB] rounded-lg"
-        />
-        <input
-          type="number"
-          min={0}
-          value={minOrder}
-          onChange={(e) => setMinOrder(e.target.value)}
-          placeholder="Min Order ৳"
-          className="px-3 py-2 border border-[#E5E7EB] rounded-lg"
-        />
-        <input
-          type="date"
-          value={expiresAt}
-          onChange={(e) => setExpiresAt(e.target.value)}
-          className="px-3 py-2 border border-[#E5E7EB] rounded-lg"
-        />
+      <form onSubmit={handleCreate} className="bg-white border border-[#E5E7EB] rounded-xl p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs items-end">
+        <div>
+          <label className="block text-[11px] font-semibold text-[#4B5563] mb-1">Coupon Code</label>
+          <input
+            required
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="e.g. POHELA20"
+            className="w-full px-3 py-2 border border-[#E5E7EB] rounded-lg uppercase font-mono"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-[#4B5563] mb-1">Discount Type</label>
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value as 'percentage' | 'fixed')}
+            className="w-full px-3 py-2 border border-[#E5E7EB] rounded-lg bg-white"
+          >
+            <option value="percentage">Percentage (%)</option>
+            <option value="fixed">Fixed (৳)</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-[#4B5563] mb-1">Value</label>
+          <input
+            type="number"
+            min={1}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Discount Value"
+            className="w-full px-3 py-2 border border-[#E5E7EB] rounded-lg"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-[#4B5563] mb-1">Min Order (৳)</label>
+          <input
+            type="number"
+            min={0}
+            value={minOrder}
+            onChange={(e) => setMinOrder(e.target.value)}
+            placeholder="Min Order ৳"
+            className="w-full px-3 py-2 border border-[#E5E7EB] rounded-lg"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-[#4B5563] mb-1">Expires</label>
+          <input
+            type="date"
+            value={expiresAt}
+            onChange={(e) => setExpiresAt(e.target.value)}
+            className="w-full px-3 py-2 border border-[#E5E7EB] rounded-lg"
+          />
+        </div>
         <button
           type="submit"
-          className="px-4 py-2 rounded-lg bg-[#F85606] text-white font-semibold inline-flex items-center justify-center gap-1"
+          className="px-4 py-2 rounded-lg bg-[#F85606] hover:bg-[#D94802] text-white font-semibold inline-flex items-center justify-center gap-1 h-[34px]"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>{language === 'bn' ? 'কুপন তৈরি' : 'Create'}</span>
         </button>
       </form>
 
-      <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-x-auto">
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-2.5">
+        {coupons.map((c) => {
+          const usagePct = Math.min(100, Math.round((c.usedCount / Math.max(1, c.usageLimit)) * 100));
+          return (
+            <div key={c.id} className="bg-white border border-[#E5E7EB] rounded-xl p-3.5 space-y-2.5 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono font-bold text-[#F85606] flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5" />
+                  {c.code}
+                </span>
+                <span className="font-bold text-[#172337]">
+                  {c.type === 'percentage' ? `${c.value}%` : formatBDT(c.value, language)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-[#6B7280]">
+                <span>Min: {formatBDT(c.minOrderAmount, language)}</span>
+                <span>Exp: {c.expiresAt}</span>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px] text-[#6B7280] tabular-nums">
+                  <span>Usage</span>
+                  <span>{c.usedCount} / {c.usageLimit}</span>
+                </div>
+                <div className="w-full h-1.5 bg-[#F5F6FA] rounded-full overflow-hidden">
+                  <div className="h-full bg-[#172337] rounded-full" style={{ width: `${usagePct}%` }} />
+                </div>
+              </div>
+              <div className="pt-2 border-t border-[#E5E7EB] flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => saveCoupon({ ...c, active: !c.active })}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                    c.active ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#F3F4F6] text-[#6B7280]'
+                  }`}
+                >
+                  {c.active ? 'Active' : 'Inactive'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteCoupon(c.id)}
+                  className="p-1.5 rounded border border-[#E5E7EB] text-[#DC2626] hover:bg-[#FEE2E2]"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-white border border-[#E5E7EB] rounded-xl overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead className="bg-[#F5F6FA] border-b border-[#E5E7EB] text-[#6B7280]">
             <tr>
@@ -1502,42 +2055,52 @@ export const AdminCouponsPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#E5E7EB]">
-            {coupons.map((c) => (
-              <tr key={c.id} className="hover:bg-[#F9FAFB]">
-                <td className="px-4 py-3 font-mono font-bold text-[#F85606] flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5" />
-                  <span>{c.code}</span>
-                </td>
-                <td className="px-4 py-3 font-semibold">
-                  {c.type === 'percentage' ? `${c.value}%` : formatBDT(c.value, language)}
-                </td>
-                <td className="px-4 py-3 tabular-nums">{formatBDT(c.minOrderAmount, language)}</td>
-                <td className="px-4 py-3 tabular-nums">
-                  {c.usedCount} / {c.usageLimit}
-                </td>
-                <td className="px-4 py-3 text-[#6B7280]">{c.expiresAt}</td>
-                <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => saveCoupon({ ...c, active: !c.active })}
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                      c.active ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#F3F4F6] text-[#6B7280]'
-                    }`}
-                  >
-                    {c.active ? 'Active' : 'Inactive'}
-                  </button>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    type="button"
-                    onClick={() => deleteCoupon(c.id)}
-                    className="p-1.5 rounded border border-[#E5E7EB] text-[#DC2626] hover:bg-[#FEE2E2]"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {coupons.map((c) => {
+              const usagePct = Math.min(100, Math.round((c.usedCount / Math.max(1, c.usageLimit)) * 100));
+              return (
+                <tr key={c.id} className="hover:bg-[#F9FAFB]">
+                  <td className="px-4 py-3 font-mono font-bold text-[#F85606]">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5" />
+                      <span>{c.code}</span>
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 font-semibold">
+                    {c.type === 'percentage' ? `${c.value}%` : formatBDT(c.value, language)}
+                  </td>
+                  <td className="px-4 py-3 tabular-nums">{formatBDT(c.minOrderAmount, language)}</td>
+                  <td className="px-4 py-3 tabular-nums min-w-[120px]">
+                    <div className="space-y-1">
+                      <span>{c.usedCount} / {c.usageLimit}</span>
+                      <div className="w-24 h-1.5 bg-[#F5F6FA] rounded-full overflow-hidden">
+                        <div className="h-full bg-[#172337] rounded-full" style={{ width: `${usagePct}%` }} />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-[#6B7280]">{c.expiresAt}</td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => saveCoupon({ ...c, active: !c.active })}
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                        c.active ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#F3F4F6] text-[#6B7280]'
+                      }`}
+                    >
+                      {c.active ? 'Active' : 'Inactive'}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => deleteCoupon(c.id)}
+                      className="p-1.5 rounded border border-[#E5E7EB] text-[#DC2626] hover:bg-[#FEE2E2]"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -1630,7 +2193,7 @@ export const AdminPromotionsPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {slides.map((slide, idx) => (
-          <div key={slide.id} className="bg-white border border-[#E5E7EB] rounded-xl p-5 space-y-3 text-xs">
+          <div key={slide.id} className="bg-white border border-[#E5E7EB] rounded-xl p-4 sm:p-5 space-y-3 text-xs">
             <div className="flex items-center gap-3">
               <img src={slide.image} alt="" className="w-20 h-14 rounded-lg object-cover shrink-0" />
               <div className="min-w-0">
@@ -1639,7 +2202,7 @@ export const AdminPromotionsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
                 <label className="block font-medium mb-1">Badge (BN)</label>
                 <input

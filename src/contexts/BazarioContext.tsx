@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   HERO_SLIDES,
   INITIAL_CATEGORIES,
@@ -43,42 +51,14 @@ export interface ToastItem {
   type: 'success' | 'error' | 'info';
 }
 
-interface BazarioContextValue {
-  language: Language;
+export interface BazarioActionsValue {
   setLanguage: (lang: Language) => void;
   toggleLanguage: () => void;
-  role: UserRole;
   setRole: (role: UserRole) => void;
-  activeSellerId: string;
   setActiveSellerId: (sellerId: string) => void;
-  currentCustomerId: string;
   setCurrentCustomerId: (custId: string) => void;
-  isLoggedIn: boolean;
   setIsLoggedIn: (val: boolean) => void;
-
-  categories: Category[];
-  sellers: Seller[];
-  products: Product[];
-  reviews: ProductReview[];
-  orders: Order[];
-  customers: Customer[];
-  coupons: Coupon[];
-  heroSlides: HeroSlide[];
-  settings: MarketplaceSettings;
-
-  cart: CartItem[];
-  wishlist: string[];
-  recentlyViewed: string[];
-  searchHistory: string[];
-  appliedCouponCode: string;
-  toasts: ToastItem[];
-
-  // Helpers
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
-  getSellerById: (sellerId: string) => Seller | undefined;
-  getCategoryBySlug: (slug: string) => Category | undefined;
-
-  // Customer actions
   addToCart: (product: Product, color: string, size: string, quantity?: number) => void;
   updateCartQuantity: (cartItemId: string, delta: number) => void;
   toggleCartItemSelected: (cartItemId: string) => void;
@@ -99,13 +79,22 @@ interface BazarioContextValue {
     deliveryMethod: DeliveryMethod;
     paymentMethod: PaymentMethod;
   }) => Order;
-  addReview: (productId: string, rating: number, comment: string, customerName: string, location: string) => void;
-  updateCustomerProfile: (data: { name: string; phone: string; email: string; city: string }) => void;
+  addReview: (
+    productId: string,
+    rating: number,
+    comment: string,
+    customerName: string,
+    location: string
+  ) => void;
+  updateCustomerProfile: (data: {
+    name: string;
+    phone: string;
+    email: string;
+    city: string;
+  }) => void;
   addCustomerAddress: (addr: Omit<SavedAddress, 'id'>) => void;
   deleteCustomerAddress: (addrId: string) => void;
   registerCustomer: (name: string, phone: string, email: string, city: string) => void;
-
-  // Seller actions
   saveSellerProduct: (product: Product) => void;
   deleteSellerProduct: (productId: string) => void;
   updateSellerProfile: (sellerId: string, updates: Partial<Seller>) => void;
@@ -118,8 +107,6 @@ interface BazarioContextValue {
     address: string;
     descriptionEn: string;
   }) => Seller;
-
-  // Admin actions
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   updateSellerStatus: (sellerId: string, status: SellerStatus) => void;
   updateProductStatus: (productId: string, status: ProductStatus) => void;
@@ -132,7 +119,63 @@ interface BazarioContextValue {
   resetAllDemoData: () => void;
 }
 
+interface BazarioContextValue extends BazarioActionsValue {
+  language: Language;
+  role: UserRole;
+  activeSellerId: string;
+  currentCustomerId: string;
+  isLoggedIn: boolean;
+
+  categories: Category[];
+  sellers: Seller[];
+  products: Product[];
+  reviews: ProductReview[];
+  orders: Order[];
+  customers: Customer[];
+  coupons: Coupon[];
+  heroSlides: HeroSlide[];
+  settings: MarketplaceSettings;
+
+  cart: CartItem[];
+  wishlist: string[];
+  wishlistSet: Set<string>;
+  recentlyViewed: string[];
+  searchHistory: string[];
+  appliedCouponCode: string;
+
+  // O(1) Helpers
+  getSellerById: (sellerId: string) => Seller | undefined;
+  getCategoryBySlug: (slug: string) => Category | undefined;
+  getProductById: (productId: string) => Product | undefined;
+}
+
 const BazarioContext = createContext<BazarioContextValue | null>(null);
+const BazarioActionsContext = createContext<BazarioActionsValue | null>(null);
+const BazarioToastContext = createContext<ToastItem[]>([]);
+
+function usePersistedSync<T>(key: string, value: T, debounceMs = 0) {
+  const isFirstRender = useRef(true);
+  const latestRef = useRef(value);
+  latestRef.current = value;
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    if (debounceMs <= 0) {
+      savePersistedState(key, value);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      savePersistedState(key, latestRef.current);
+    }, debounceMs);
+
+    return () => window.clearTimeout(timer);
+  }, [key, value, debounceMs]);
+}
 
 export const BazarioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() =>
@@ -196,155 +239,228 @@ export const BazarioProvider: React.FC<{ children: React.ReactNode }> = ({ child
   );
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  useEffect(() => savePersistedState('lang', language), [language]);
-  useEffect(() => savePersistedState('role', role), [role]);
-  useEffect(() => savePersistedState('activeSeller', activeSellerId), [activeSellerId]);
-  useEffect(() => savePersistedState('activeCustomer', currentCustomerId), [currentCustomerId]);
-  useEffect(() => savePersistedState('loggedIn', isLoggedIn), [isLoggedIn]);
-  useEffect(() => savePersistedState('categories', categories), [categories]);
-  useEffect(() => savePersistedState('sellers', sellers), [sellers]);
-  useEffect(() => savePersistedState('products', products), [products]);
-  useEffect(() => savePersistedState('reviews', reviews), [reviews]);
-  useEffect(() => savePersistedState('orders', orders), [orders]);
-  useEffect(() => savePersistedState('customers', customers), [customers]);
-  useEffect(() => savePersistedState('coupons', coupons), [coupons]);
-  useEffect(() => savePersistedState('heroSlides', heroSlides), [heroSlides]);
-  useEffect(() => savePersistedState('settings', settings), [settings]);
-  useEffect(() => savePersistedState('cart', cart), [cart]);
-  useEffect(() => savePersistedState('wishlist', wishlist), [wishlist]);
-  useEffect(() => savePersistedState('recentlyViewed', recentlyViewed), [recentlyViewed]);
-  useEffect(() => savePersistedState('searchHistory', searchHistory), [searchHistory]);
-  useEffect(() => savePersistedState('appliedCoupon', appliedCouponCode), [appliedCouponCode]);
+  // Only persist after state actually changes; debounce large datasets to avoid main-thread stalls
+  usePersistedSync('lang', language);
+  usePersistedSync('role', role);
+  usePersistedSync('activeSeller', activeSellerId);
+  usePersistedSync('activeCustomer', currentCustomerId);
+  usePersistedSync('loggedIn', isLoggedIn);
+  usePersistedSync('categories', categories, 150);
+  usePersistedSync('sellers', sellers, 150);
+  usePersistedSync('products', products, 200);
+  usePersistedSync('reviews', reviews, 150);
+  usePersistedSync('orders', orders, 150);
+  usePersistedSync('customers', customers, 150);
+  usePersistedSync('coupons', coupons, 150);
+  usePersistedSync('heroSlides', heroSlides, 150);
+  usePersistedSync('settings', settings, 150);
+  usePersistedSync('cart', cart);
+  usePersistedSync('wishlist', wishlist);
+  usePersistedSync('recentlyViewed', recentlyViewed, 150);
+  usePersistedSync('searchHistory', searchHistory, 150);
+  usePersistedSync('appliedCoupon', appliedCouponCode);
 
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    const id = `${Date.now()}-${Math.random()}`;
-    setToasts((prev) => [...prev.slice(-3), { id, message, type }]);
-    window.setTimeout(() => {
-      setToasts((prev) => prev.filter((item) => item.id !== id));
-    }, 2600);
+  // Indexed Maps & Sets for O(1) lookups across grids, cart, checkout & admin
+  const sellerByIdMap = useMemo(() => {
+    const map = new Map<string, Seller>();
+    for (const s of sellers) map.set(s.id, s);
+    return map;
+  }, [sellers]);
+
+  const categoryBySlugMap = useMemo(() => {
+    const map = new Map<string, Category>();
+    for (const c of categories) map.set(c.slug, c);
+    return map;
+  }, [categories]);
+
+  const productByIdMap = useMemo(() => {
+    const map = new Map<string, Product>();
+    for (const p of products) map.set(p.id, p);
+    return map;
+  }, [products]);
+
+  const wishlistSet = useMemo(() => new Set(wishlist), [wishlist]);
+
+  // Keep refs to mutable state needed inside stable callbacks
+  const stateRef = useRef({
+    language,
+    cart,
+    coupons,
+    products,
+    productByIdMap,
+    appliedCouponCode,
+    currentCustomerId,
+    settings,
+    reviews,
+  });
+  stateRef.current = {
+    language,
+    cart,
+    coupons,
+    products,
+    productByIdMap,
+    appliedCouponCode,
+    currentCustomerId,
+    settings,
+    reviews,
   };
 
-  const setLanguage = (lang: Language) => setLanguageState(lang);
-  const toggleLanguage = () => setLanguageState((prev) => (prev === 'bn' ? 'en' : 'bn'));
-  const setRole = (nextRole: UserRole) => setRoleState(nextRole);
+  const showToast = useCallback(
+    (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+      const id = `${Date.now()}-${Math.random()}`;
+      setToasts((prev) => [...prev.slice(-3), { id, message, type }]);
+      window.setTimeout(() => {
+        setToasts((prev) => prev.filter((item) => item.id !== id));
+      }, 2600);
+    },
+    []
+  );
 
-  const getSellerById = (sellerId: string) => sellers.find((s) => s.id === sellerId);
-  const getCategoryBySlug = (slug: string) => categories.find((c) => c.slug === slug);
+  const setLanguage = useCallback((lang: Language) => setLanguageState(lang), []);
+  const toggleLanguage = useCallback(
+    () => setLanguageState((prev) => (prev === 'bn' ? 'en' : 'bn')),
+    []
+  );
+  const setRole = useCallback((nextRole: UserRole) => setRoleState(nextRole), []);
 
-  const addToCart = (product: Product, color: string, size: string, quantity = 1) => {
-    if (product.stock <= 0) {
-      showToast(language === 'bn' ? 'দুঃখিত, পণ্যটি স্টকে নেই' : 'Product is out of stock', 'error');
-      return;
-    }
-    const cartItemId = `${product.id}__${color}__${size}`;
-    setCart((prev) => {
-      const existing = prev.find((i) => i.id === cartItemId);
-      if (existing) {
-        const nextQty = Math.min(product.stock, existing.quantity + quantity);
-        return prev.map((i) =>
-          i.id === cartItemId ? { ...i, quantity: nextQty, selected: true } : i
-        );
+  const getSellerById = useCallback(
+    (sellerId: string) => sellerByIdMap.get(sellerId),
+    [sellerByIdMap]
+  );
+  const getCategoryBySlug = useCallback(
+    (slug: string) => categoryBySlugMap.get(slug),
+    [categoryBySlugMap]
+  );
+  const getProductById = useCallback(
+    (productId: string) => productByIdMap.get(productId),
+    [productByIdMap]
+  );
+
+  const addToCart = useCallback(
+    (product: Product, color: string, size: string, quantity = 1) => {
+      const lang = stateRef.current.language;
+      if (product.stock <= 0) {
+        showToast(lang === 'bn' ? 'দুঃখিত, পণ্যটি স্টকে নেই' : 'Product is out of stock', 'error');
+        return;
       }
-      return [
-        ...prev,
-        {
-          id: cartItemId,
-          productId: product.id,
-          sellerId: product.sellerId,
-          quantity: Math.min(product.stock, quantity),
-          color,
-          size,
-          selected: true,
-        },
-      ];
-    });
-    showToast(
-      language === 'bn'
-        ? `${product.name.bn} কার্টে যোগ করা হয়েছে`
-        : `${product.name.en} added to cart`
-    );
-  };
+      const cartItemId = `${product.id}__${color}__${size}`;
+      setCart((prev) => {
+        const existing = prev.find((i) => i.id === cartItemId);
+        if (existing) {
+          const nextQty = Math.min(product.stock, existing.quantity + quantity);
+          return prev.map((i) =>
+            i.id === cartItemId ? { ...i, quantity: nextQty, selected: true } : i
+          );
+        }
+        return [
+          ...prev,
+          {
+            id: cartItemId,
+            productId: product.id,
+            sellerId: product.sellerId,
+            quantity: Math.min(product.stock, quantity),
+            color,
+            size,
+            selected: true,
+          },
+        ];
+      });
+      showToast(
+        lang === 'bn'
+          ? `${product.name.bn} কার্টে যোগ করা হয়েছে`
+          : `${product.name.en} added to cart`
+      );
+    },
+    [showToast]
+  );
 
-  const updateCartQuantity = (cartItemId: string, delta: number) => {
+  const updateCartQuantity = useCallback((cartItemId: string, delta: number) => {
     setCart((prev) =>
       prev
         .map((item) => {
           if (item.id !== cartItemId) return item;
-          const prod = products.find((p) => p.id === item.productId);
+          const prod = stateRef.current.productByIdMap.get(item.productId);
           const maxStock = prod?.stock ?? 99;
           const next = Math.min(maxStock, item.quantity + delta);
           return { ...item, quantity: next };
         })
         .filter((item) => item.quantity > 0)
     );
-  };
+  }, []);
 
-  const toggleCartItemSelected = (cartItemId: string) => {
+  const toggleCartItemSelected = useCallback((cartItemId: string) => {
     setCart((prev) =>
       prev.map((item) =>
         item.id === cartItemId ? { ...item, selected: !item.selected } : item
       )
     );
-  };
+  }, []);
 
-  const toggleSelectAllCart = (selected: boolean) => {
+  const toggleSelectAllCart = useCallback((selected: boolean) => {
     setCart((prev) => prev.map((item) => ({ ...item, selected })));
-  };
+  }, []);
 
-  const removeFromCart = (cartItemId: string) => {
+  const removeFromCart = useCallback((cartItemId: string) => {
     setCart((prev) => prev.filter((item) => item.id !== cartItemId));
-  };
+  }, []);
 
-  const clearSelectedCartItems = () => {
+  const clearSelectedCartItems = useCallback(() => {
     setCart((prev) => prev.filter((item) => !item.selected));
-  };
+  }, []);
 
-  const toggleWishlist = (productId: string) => {
-    setWishlist((prev) => {
-      const exists = prev.includes(productId);
-      showToast(
-        exists
-          ? language === 'bn'
-            ? 'উইশলিস্ট থেকে সরানো হয়েছে'
-            : 'Removed from wishlist'
-          : language === 'bn'
-          ? 'উইশলিস্টে সংরক্ষণ করা হয়েছে'
-          : 'Saved to wishlist',
-        'info'
-      );
-      return exists ? prev.filter((id) => id !== productId) : [productId, ...prev];
+  const toggleWishlist = useCallback(
+    (productId: string) => {
+      const lang = stateRef.current.language;
+      setWishlist((prev) => {
+        const exists = prev.includes(productId);
+        showToast(
+          exists
+            ? lang === 'bn'
+              ? 'উইশলিস্ট থেকে সরানো হয়েছে'
+              : 'Removed from wishlist'
+            : lang === 'bn'
+            ? 'উইশলিস্টে সংরক্ষণ করা হয়েছে'
+            : 'Saved to wishlist',
+          'info'
+        );
+        return exists ? prev.filter((id) => id !== productId) : [productId, ...prev];
+      });
+    },
+    [showToast]
+  );
+
+  const recordProductView = useCallback((productId: string) => {
+    setRecentlyViewed((prev) => {
+      if (prev[0] === productId) return prev;
+      return [productId, ...prev.filter((id) => id !== productId)].slice(0, 10);
     });
-  };
+  }, []);
 
-  const recordProductView = (productId: string) => {
-    setRecentlyViewed((prev) => [productId, ...prev.filter((id) => id !== productId)].slice(0, 10));
-  };
-
-  const addSearchHistory = (query: string) => {
+  const addSearchHistory = useCallback((query: string) => {
     const clean = query.trim();
     if (!clean) return;
     setSearchHistory((prev) =>
       [clean, ...prev.filter((q) => q.toLowerCase() !== clean.toLowerCase())].slice(0, 6)
     );
-  };
+  }, []);
 
-  const selectedCartSubtotal = useMemo(() => {
-    return cart
+  const applyCoupon = useCallback((rawCode: string): { ok: boolean; message: string } => {
+    const { language: lang, coupons: currentCoupons, cart: currentCart, productByIdMap: pMap } =
+      stateRef.current;
+    const subtotal = currentCart
       .filter((i) => i.selected)
       .reduce((sum, item) => {
-        const prod = products.find((p) => p.id === item.productId);
+        const prod = pMap.get(item.productId);
         return sum + (prod ? prod.discountedPrice * item.quantity : 0);
       }, 0);
-  }, [cart, products]);
 
-  const applyCoupon = (rawCode: string): { ok: boolean; message: string } => {
     const normalized = rawCode.trim().toUpperCase();
-    const coupon = coupons.find((c) => c.code.toUpperCase() === normalized && c.active);
+    const coupon = currentCoupons.find((c) => c.code.toUpperCase() === normalized && c.active);
     if (!coupon) {
       return {
         ok: false,
         message:
-          language === 'bn'
+          lang === 'bn'
             ? 'কুপন কোডটি সঠিক নয় বা মেয়াদ শেষ হয়েছে।'
             : 'Invalid or inactive coupon code.',
       };
@@ -352,15 +468,14 @@ export const BazarioProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (coupon.usedCount >= coupon.usageLimit) {
       return {
         ok: false,
-        message:
-          language === 'bn' ? 'কুপন ব্যবহারের সীমা শেষ।' : 'Coupon usage limit reached.',
+        message: lang === 'bn' ? 'কুপন ব্যবহারের সীমা শেষ।' : 'Coupon usage limit reached.',
       };
     }
-    if (selectedCartSubtotal < coupon.minOrderAmount) {
+    if (subtotal < coupon.minOrderAmount) {
       return {
         ok: false,
         message:
-          language === 'bn'
+          lang === 'bn'
             ? `এই কুপনটি ব্যবহার করতে ন্যূনতম ৳${coupon.minOrderAmount} অর্ডার প্রয়োজন।`
             : `Minimum order of ৳${coupon.minOrderAmount} required for ${coupon.code}.`,
       };
@@ -369,395 +484,462 @@ export const BazarioProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return {
       ok: true,
       message:
-        language === 'bn'
+        lang === 'bn'
           ? `${coupon.code} সফলভাবে প্রয়োগ করা হয়েছে!`
           : `Coupon ${coupon.code} applied!`,
     };
-  };
+  }, []);
 
-  const clearCoupon = () => setAppliedCouponCode('');
+  const clearCoupon = useCallback(() => setAppliedCouponCode(''), []);
 
-  const placeOrder = (payload: {
-    customerName: string;
-    phone: string;
-    altPhone?: string;
-    email?: string;
-    address: OrderAddress;
-    deliveryMethod: DeliveryMethod;
-    paymentMethod: PaymentMethod;
-  }): Order => {
-    const selectedItems = cart.filter((i) => i.selected);
-    const itemsToOrder = selectedItems.length > 0 ? selectedItems : cart;
+  const placeOrder = useCallback(
+    (payload: {
+      customerName: string;
+      phone: string;
+      altPhone?: string;
+      email?: string;
+      address: OrderAddress;
+      deliveryMethod: DeliveryMethod;
+      paymentMethod: PaymentMethod;
+    }): Order => {
+      const {
+        cart: currentCart,
+        productByIdMap: pMap,
+        settings: currentSettings,
+        coupons: currentCoupons,
+        appliedCouponCode: currentCouponCode,
+        currentCustomerId: custId,
+      } = stateRef.current;
 
-    const orderItems = itemsToOrder.map((ci) => {
-      const prod = products.find((p) => p.id === ci.productId)!;
-      return {
-        productId: prod.id,
-        sellerId: prod.sellerId,
-        productName: prod.name,
-        sku: prod.sku,
-        image: prod.images[0],
-        color: ci.color,
-        size: ci.size,
-        quantity: ci.quantity,
-        unitPrice: prod.discountedPrice,
-      };
-    });
+      const selectedItems = currentCart.filter((i) => i.selected);
+      const itemsToOrder = selectedItems.length > 0 ? selectedItems : currentCart;
 
-    const subtotal = orderItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-    const isDhaka = payload.address.district === 'Dhaka';
-    const baseDelivery = isDhaka
-      ? settings.deliveryDhakaCharge
-      : settings.deliveryOutsideCharge;
-    const expressExtra =
-      payload.deliveryMethod === 'Express' ? settings.expressExtraCharge : 0;
-    const deliveryCharge =
-      subtotal >= settings.freeDeliveryThreshold && payload.deliveryMethod === 'Standard'
-        ? 0
-        : baseDelivery + expressExtra;
-
-    let discount = 0;
-    const activeCoupon = coupons.find(
-      (c) => c.code === appliedCouponCode && c.active && subtotal >= c.minOrderAmount
-    );
-    if (activeCoupon) {
-      discount =
-        activeCoupon.type === 'percentage'
-          ? Math.min(
-              activeCoupon.maxDiscount ?? 999999,
-              Math.round((subtotal * activeCoupon.value) / 100)
-            )
-          : activeCoupon.value;
-    }
-
-    const total = Math.max(0, subtotal + deliveryCharge - discount);
-    const now = new Date();
-    const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
-      2,
-      '0'
-    )}-${String(now.getDate()).padStart(2, '0')} ${String(
-      now.getHours()
-    ).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-    const newOrder: Order = {
-      id: `BZ-${Math.floor(8500 + Math.random() * 1400)}`,
-      customerId: currentCustomerId,
-      customerName: payload.customerName,
-      phone: payload.phone,
-      altPhone: payload.altPhone,
-      email: payload.email,
-      address: payload.address,
-      deliveryMethod: payload.deliveryMethod,
-      paymentMethod: payload.paymentMethod,
-      paymentSimulatedRef:
-        payload.paymentMethod === 'Cash on Delivery'
-          ? undefined
-          : `DEMO-${payload.paymentMethod.slice(0, 3).toUpperCase()}-${Math.floor(
-              1000 + Math.random() * 8999
-            )}`,
-      status: 'Pending',
-      items: orderItems,
-      subtotal,
-      deliveryCharge,
-      discount,
-      couponCode: activeCoupon?.code,
-      total,
-      createdAt: timestamp,
-      estimatedDelivery:
-        payload.deliveryMethod === 'Express'
-          ? isDhaka
-            ? 'Within 24 Hours (Dhaka Express)'
-            : '1–2 Days (Nationwide Express)'
-          : isDhaka
-          ? '1–2 Days (Dhaka Standard)'
-          : '3–5 Days (Outside Dhaka)',
-    };
-
-    setOrders((prev) => [newOrder, ...prev]);
-
-    // Update product stock & sold count
-    setProducts((prev) =>
-      prev.map((prod) => {
-        const bought = orderItems
-          .filter((i) => i.productId === prod.id)
-          .reduce((s, i) => s + i.quantity, 0);
-        if (bought === 0) return prod;
+      const orderItems = itemsToOrder.map((ci) => {
+        const prod = pMap.get(ci.productId)!;
         return {
-          ...prod,
-          stock: Math.max(0, prod.stock - bought),
-          soldCount: prod.soldCount + bought,
+          productId: prod.id,
+          sellerId: prod.sellerId,
+          productName: prod.name,
+          sku: prod.sku,
+          image: prod.images[0],
+          color: ci.color,
+          size: ci.size,
+          quantity: ci.quantity,
+          unitPrice: prod.discountedPrice,
         };
-      })
-    );
+      });
 
-    if (activeCoupon) {
-      setCoupons((prev) =>
+      const subtotal = orderItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+      const isDhaka = payload.address.district === 'Dhaka';
+      const baseDelivery = isDhaka
+        ? currentSettings.deliveryDhakaCharge
+        : currentSettings.deliveryOutsideCharge;
+      const expressExtra =
+        payload.deliveryMethod === 'Express' ? currentSettings.expressExtraCharge : 0;
+      const deliveryCharge =
+        subtotal >= currentSettings.freeDeliveryThreshold &&
+        payload.deliveryMethod === 'Standard'
+          ? 0
+          : baseDelivery + expressExtra;
+
+      let discount = 0;
+      const activeCoupon = currentCoupons.find(
+        (c) => c.code === currentCouponCode && c.active && subtotal >= c.minOrderAmount
+      );
+      if (activeCoupon) {
+        discount =
+          activeCoupon.type === 'percentage'
+            ? Math.min(
+                activeCoupon.maxDiscount ?? 999999,
+                Math.round((subtotal * activeCoupon.value) / 100)
+              )
+            : activeCoupon.value;
+      }
+
+      const total = Math.max(0, subtotal + deliveryCharge - discount);
+      const now = new Date();
+      const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+        2,
+        '0'
+      )}-${String(now.getDate()).padStart(2, '0')} ${String(
+        now.getHours()
+      ).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      const newOrder: Order = {
+        id: `BZ-${Math.floor(8500 + Math.random() * 1400)}`,
+        customerId: custId,
+        customerName: payload.customerName,
+        phone: payload.phone,
+        altPhone: payload.altPhone,
+        email: payload.email,
+        address: payload.address,
+        deliveryMethod: payload.deliveryMethod,
+        paymentMethod: payload.paymentMethod,
+        paymentSimulatedRef:
+          payload.paymentMethod === 'Cash on Delivery'
+            ? undefined
+            : `DEMO-${payload.paymentMethod.slice(0, 3).toUpperCase()}-${Math.floor(
+                1000 + Math.random() * 8999
+              )}`,
+        status: 'Pending',
+        items: orderItems,
+        subtotal,
+        deliveryCharge,
+        discount,
+        couponCode: activeCoupon?.code,
+        total,
+        createdAt: timestamp,
+        estimatedDelivery:
+          payload.deliveryMethod === 'Express'
+            ? isDhaka
+              ? 'Within 24 Hours (Dhaka Express)'
+              : '1–2 Days (Nationwide Express)'
+            : isDhaka
+            ? '1–2 Days (Dhaka Standard)'
+            : '3–5 Days (Outside Dhaka)',
+      };
+
+      const boughtQtyMap = new Map<string, number>();
+      for (const item of orderItems) {
+        boughtQtyMap.set(
+          item.productId,
+          (boughtQtyMap.get(item.productId) ?? 0) + item.quantity
+        );
+      }
+
+      setOrders((prev) => [newOrder, ...prev]);
+      setProducts((prev) =>
+        prev.map((prod) => {
+          const bought = boughtQtyMap.get(prod.id) ?? 0;
+          if (bought === 0) return prod;
+          return {
+            ...prod,
+            stock: Math.max(0, prod.stock - bought),
+            soldCount: prod.soldCount + bought,
+          };
+        })
+      );
+
+      if (activeCoupon) {
+        setCoupons((prev) =>
+          prev.map((c) =>
+            c.id === activeCoupon.id ? { ...c, usedCount: c.usedCount + 1 } : c
+          )
+        );
+      }
+
+      setCustomers((prev) =>
         prev.map((c) =>
-          c.id === activeCoupon.id ? { ...c, usedCount: c.usedCount + 1 } : c
+          c.id === custId
+            ? {
+                ...c,
+                totalOrders: c.totalOrders + 1,
+                totalSpent: c.totalSpent + total,
+              }
+            : c
         )
       );
-    }
 
+      clearSelectedCartItems();
+      setAppliedCouponCode('');
+      return newOrder;
+    },
+    [clearSelectedCartItems]
+  );
+
+  const addReview = useCallback(
+    (
+      productId: string,
+      rating: number,
+      comment: string,
+      customerName: string,
+      location: string
+    ) => {
+      const lang = stateRef.current.language;
+      const newRev: ProductReview = {
+        id: `rev-${Date.now()}`,
+        productId,
+        customerName,
+        location,
+        rating,
+        comment,
+        createdAt: new Date().toISOString().slice(0, 10),
+        verifiedPurchase: true,
+      };
+      setReviews((prev) => [newRev, ...prev]);
+      setProducts((prev) =>
+        prev.map((p) => {
+          if (p.id !== productId) return p;
+          const nextCount = p.reviewCount + 1;
+          const nextRating = Number(
+            ((p.rating * p.reviewCount + rating) / nextCount).toFixed(1)
+          );
+          return { ...p, reviewCount: nextCount, rating: nextRating };
+        })
+      );
+      showToast(lang === 'bn' ? 'রিভিউ যুক্ত হয়েছে!' : 'Review published!');
+    },
+    [showToast]
+  );
+
+  const updateCustomerProfile = useCallback(
+    (data: { name: string; phone: string; email: string; city: string }) => {
+      const { currentCustomerId: custId, language: lang } = stateRef.current;
+      setCustomers((prev) =>
+        prev.map((c) => (c.id === custId ? { ...c, ...data } : c))
+      );
+      showToast(lang === 'bn' ? 'প্রোফাইল আপডেট হয়েছে' : 'Profile updated');
+    },
+    [showToast]
+  );
+
+  const addCustomerAddress = useCallback(
+    (addr: Omit<SavedAddress, 'id'>) => {
+      const { currentCustomerId: custId, language: lang } = stateRef.current;
+      const newAddr: SavedAddress = { ...addr, id: `addr-${Date.now()}` };
+      setCustomers((prev) =>
+        prev.map((c) => {
+          if (c.id !== custId) return c;
+          const base = addr.isDefault
+            ? c.addresses.map((a) => ({ ...a, isDefault: false }))
+            : c.addresses;
+          return { ...c, addresses: [newAddr, ...base] };
+        })
+      );
+      showToast(lang === 'bn' ? 'নতুন ঠিকানা সংরক্ষিত' : 'Address saved');
+    },
+    [showToast]
+  );
+
+  const deleteCustomerAddress = useCallback((addrId: string) => {
+    const custId = stateRef.current.currentCustomerId;
     setCustomers((prev) =>
       prev.map((c) =>
-        c.id === currentCustomerId
-          ? {
-              ...c,
-              totalOrders: c.totalOrders + 1,
-              totalSpent: c.totalSpent + total,
-            }
-          : c
-      )
-    );
-
-    clearSelectedCartItems();
-    setAppliedCouponCode('');
-    return newOrder;
-  };
-
-  const addReview = (
-    productId: string,
-    rating: number,
-    comment: string,
-    customerName: string,
-    location: string
-  ) => {
-    const newRev: ProductReview = {
-      id: `rev-${Date.now()}`,
-      productId,
-      customerName,
-      location,
-      rating,
-      comment,
-      createdAt: new Date().toISOString().slice(0, 10),
-      verifiedPurchase: true,
-    };
-    setReviews((prev) => [newRev, ...prev]);
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id !== productId) return p;
-        const nextCount = p.reviewCount + 1;
-        const nextRating = Number(
-          ((p.rating * p.reviewCount + rating) / nextCount).toFixed(1)
-        );
-        return { ...p, reviewCount: nextCount, rating: nextRating };
-      })
-    );
-    showToast(language === 'bn' ? 'রিভিউ যুক্ত হয়েছে!' : 'Review published!');
-  };
-
-  const updateCustomerProfile = (data: {
-    name: string;
-    phone: string;
-    email: string;
-    city: string;
-  }) => {
-    setCustomers((prev) =>
-      prev.map((c) => (c.id === currentCustomerId ? { ...c, ...data } : c))
-    );
-    showToast(language === 'bn' ? 'প্রোফাইল আপডেট হয়েছে' : 'Profile updated');
-  };
-
-  const addCustomerAddress = (addr: Omit<SavedAddress, 'id'>) => {
-    const newAddr: SavedAddress = { ...addr, id: `addr-${Date.now()}` };
-    setCustomers((prev) =>
-      prev.map((c) => {
-        if (c.id !== currentCustomerId) return c;
-        const base = addr.isDefault
-          ? c.addresses.map((a) => ({ ...a, isDefault: false }))
-          : c.addresses;
-        return { ...c, addresses: [newAddr, ...base] };
-      })
-    );
-    showToast(language === 'bn' ? 'নতুন ঠিকানা সংরক্ষিত' : 'Address saved');
-  };
-
-  const deleteCustomerAddress = (addrId: string) => {
-    setCustomers((prev) =>
-      prev.map((c) =>
-        c.id === currentCustomerId
+        c.id === custId
           ? { ...c, addresses: c.addresses.filter((a) => a.id !== addrId) }
           : c
       )
     );
-  };
+  }, []);
 
-  const registerCustomer = (
-    name: string,
-    phone: string,
-    email: string,
-    city: string
-  ) => {
-    const newCust: Customer = {
-      id: `cust-${Date.now()}`,
-      name,
-      phone,
-      email,
-      city,
-      joinedAt: new Date().toISOString().slice(0, 10),
-      totalOrders: 0,
-      totalSpent: 0,
-      addresses: [],
-    };
-    setCustomers((prev) => [newCust, ...prev]);
-    setCurrentCustomerId(newCust.id);
-    setIsLoggedIn(true);
-    showToast(
-      language === 'bn' ? 'অ্যাকাউন্ট তৈরি সফল হয়েছে!' : 'Welcome to BAZARIO!'
-    );
-  };
+  const registerCustomer = useCallback(
+    (name: string, phone: string, email: string, city: string) => {
+      const lang = stateRef.current.language;
+      const newCust: Customer = {
+        id: `cust-${Date.now()}`,
+        name,
+        phone,
+        email,
+        city,
+        joinedAt: new Date().toISOString().slice(0, 10),
+        totalOrders: 0,
+        totalSpent: 0,
+        addresses: [],
+      };
+      setCustomers((prev) => [newCust, ...prev]);
+      setCurrentCustomerId(newCust.id);
+      setIsLoggedIn(true);
+      showToast(lang === 'bn' ? 'অ্যাকাউন্ট তৈরি সফল হয়েছে!' : 'Welcome to BAZARIO!');
+    },
+    [showToast]
+  );
 
   // Seller operations
-  const saveSellerProduct = (product: Product) => {
-    setProducts((prev) => {
-      const exists = prev.some((p) => p.id === product.id);
-      return exists
-        ? prev.map((p) => (p.id === product.id ? product : p))
-        : [product, ...prev];
-    });
-    showToast(
-      language === 'bn'
-        ? `${product.name.bn} সংরক্ষণ করা হয়েছে`
-        : `${product.name.en} saved`
-    );
-  };
+  const saveSellerProduct = useCallback(
+    (product: Product) => {
+      const lang = stateRef.current.language;
+      setProducts((prev) => {
+        const exists = prev.some((p) => p.id === product.id);
+        return exists
+          ? prev.map((p) => (p.id === product.id ? product : p))
+          : [product, ...prev];
+      });
+      showToast(
+        lang === 'bn' ? `${product.name.bn} সংরক্ষণ করা হয়েছে` : `${product.name.en} saved`
+      );
+    },
+    [showToast]
+  );
 
-  const deleteSellerProduct = (productId: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
-    showToast(language === 'bn' ? 'পণ্য মুছে ফেলা হয়েছে' : 'Product deleted', 'info');
-  };
+  const deleteSellerProduct = useCallback(
+    (productId: string) => {
+      const lang = stateRef.current.language;
+      setProducts((prev) => prev.filter((p) => p.id !== productId));
+      showToast(lang === 'bn' ? 'পণ্য মুছে ফেলা হয়েছে' : 'Product deleted', 'info');
+    },
+    [showToast]
+  );
 
-  const updateSellerProfile = (sellerId: string, updates: Partial<Seller>) => {
-    setSellers((prev) =>
-      prev.map((s) => (s.id === sellerId ? { ...s, ...updates } : s))
-    );
-    showToast(language === 'bn' ? 'স্টোর প্রোফাইল আপডেট হয়েছে' : 'Store profile updated');
-  };
+  const updateSellerProfile = useCallback(
+    (sellerId: string, updates: Partial<Seller>) => {
+      const lang = stateRef.current.language;
+      setSellers((prev) =>
+        prev.map((s) => (s.id === sellerId ? { ...s, ...updates } : s))
+      );
+      showToast(lang === 'bn' ? 'স্টোর প্রোফাইল আপডেট হয়েছে' : 'Store profile updated');
+    },
+    [showToast]
+  );
 
-  const submitSellerApplication = (app: {
-    ownerName: string;
-    phone: string;
-    email: string;
-    storeName: string;
-    businessCategory: string;
-    address: string;
-    descriptionEn: string;
-  }): Seller => {
-    const slug = app.storeName
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-');
-    const initials = app.storeName
-      .split(' ')
-      .map((w) => w[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase();
-    const newSeller: Seller = {
-      id: `sel-${Date.now()}`,
-      slug: `${slug}-${Math.floor(10 + Math.random() * 89)}`,
-      storeName: app.storeName,
-      ownerName: app.ownerName,
-      email: app.email,
-      phone: app.phone,
-      businessCategory: app.businessCategory,
-      address: app.address,
-      description: {
-        bn: app.descriptionEn,
-        en: app.descriptionEn,
-      },
-      rating: 5.0,
-      reviewCount: 0,
-      totalSalesCount: 0,
-      status: 'pending',
-      verified: false,
-      joinedAt: new Date().toISOString().slice(0, 10),
-      bannerColor: '#172337',
-      logoInitials: initials || 'BZ',
-    };
-    setSellers((prev) => [newSeller, ...prev]);
-    setActiveSellerId(newSeller.id);
-    showToast(
-      language === 'bn'
-        ? 'সেলার আবেদন জমা হয়েছে! অ্যাডমিন অনুমোদনের অপেক্ষায়।'
-        : 'Seller application submitted! Pending admin approval.'
-    );
-    return newSeller;
-  };
+  const submitSellerApplication = useCallback(
+    (app: {
+      ownerName: string;
+      phone: string;
+      email: string;
+      storeName: string;
+      businessCategory: string;
+      address: string;
+      descriptionEn: string;
+    }): Seller => {
+      const lang = stateRef.current.language;
+      const slug = app.storeName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-');
+      const initials = app.storeName
+        .split(' ')
+        .map((w) => w[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase();
+      const newSeller: Seller = {
+        id: `sel-${Date.now()}`,
+        slug: `${slug}-${Math.floor(10 + Math.random() * 89)}`,
+        storeName: app.storeName,
+        ownerName: app.ownerName,
+        email: app.email,
+        phone: app.phone,
+        businessCategory: app.businessCategory,
+        address: app.address,
+        description: {
+          bn: app.descriptionEn,
+          en: app.descriptionEn,
+        },
+        rating: 5.0,
+        reviewCount: 0,
+        totalSalesCount: 0,
+        status: 'pending',
+        verified: false,
+        joinedAt: new Date().toISOString().slice(0, 10),
+        bannerColor: '#172337',
+        logoInitials: initials || 'BZ',
+      };
+      setSellers((prev) => [newSeller, ...prev]);
+      setActiveSellerId(newSeller.id);
+      showToast(
+        lang === 'bn'
+          ? 'সেলার আবেদন জমা হয়েছে! অ্যাডমিন অনুমোদনের অপেক্ষায়।'
+          : 'Seller application submitted! Pending admin approval.'
+      );
+      return newSeller;
+    },
+    [showToast]
+  );
 
   // Admin operations
-  const updateOrderStatus = (orderId: string, status: OrderStatus) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status } : o))
-    );
-    showToast(`Order #${orderId} → ${status}`);
-  };
+  const updateOrderStatus = useCallback(
+    (orderId: string, status: OrderStatus) => {
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+      );
+      showToast(`Order #${orderId} → ${status}`);
+    },
+    [showToast]
+  );
 
-  const updateSellerStatus = (sellerId: string, status: SellerStatus) => {
-    setSellers((prev) =>
-      prev.map((s) =>
-        s.id === sellerId
-          ? { ...s, status, verified: status === 'approved' }
-          : s
-      )
-    );
-    showToast(`Seller status updated to ${status}`);
-  };
-
-  const updateProductStatus = (productId: string, status: ProductStatus) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === productId ? { ...p, status } : p))
-    );
-    showToast(`Product moderation → ${status}`);
-  };
-
-  const saveCategory = (cat: Category) => {
-    setCategories((prev) => {
-      const exists = prev.some((c) => c.id === cat.id);
-      return exists ? prev.map((c) => (c.id === cat.id ? cat : c)) : [...prev, cat];
-    });
-    showToast('Category saved');
-  };
-
-  const saveCoupon = (coupon: Coupon) => {
-    setCoupons((prev) => {
-      const exists = prev.some((c) => c.id === coupon.id);
-      return exists ? prev.map((c) => (c.id === coupon.id ? coupon : c)) : [coupon, ...prev];
-    });
-    showToast(`Coupon ${coupon.code} saved`);
-  };
-
-  const deleteCoupon = (couponId: string) => {
-    setCoupons((prev) => prev.filter((c) => c.id !== couponId));
-    showToast('Coupon removed', 'info');
-  };
-
-  const updateSettings = (updates: Partial<MarketplaceSettings>) => {
-    setSettings((prev) => ({ ...prev, ...updates }));
-    showToast(language === 'bn' ? 'সেটিংস সংরক্ষিত হয়েছে' : 'Settings updated');
-  };
-
-  const saveHeroSlides = (slides: HeroSlide[]) => {
-    setHeroSlides(slides);
-    showToast('Promotional banners updated');
-  };
-
-  const deleteReview = (reviewId: string) => {
-    const target = reviews.find((r) => r.id === reviewId);
-    setReviews((prev) => prev.filter((r) => r.id !== reviewId));
-    if (target) {
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.id === target.productId
-            ? { ...p, reviewCount: Math.max(0, p.reviewCount - 1) }
-            : p
+  const updateSellerStatus = useCallback(
+    (sellerId: string, status: SellerStatus) => {
+      setSellers((prev) =>
+        prev.map((s) =>
+          s.id === sellerId
+            ? { ...s, status, verified: status === 'approved' }
+            : s
         )
       );
-    }
-    showToast(language === 'bn' ? 'রিভিউ মুছে ফেলা হয়েছে' : 'Review removed', 'info');
-  };
+      showToast(`Seller status updated to ${status}`);
+    },
+    [showToast]
+  );
 
-  const resetAllDemoData = () => {
+  const updateProductStatus = useCallback(
+    (productId: string, status: ProductStatus) => {
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, status } : p))
+      );
+      showToast(`Product moderation → ${status}`);
+    },
+    [showToast]
+  );
+
+  const saveCategory = useCallback(
+    (cat: Category) => {
+      setCategories((prev) => {
+        const exists = prev.some((c) => c.id === cat.id);
+        return exists ? prev.map((c) => (c.id === cat.id ? cat : c)) : [...prev, cat];
+      });
+      showToast('Category saved');
+    },
+    [showToast]
+  );
+
+  const saveCoupon = useCallback(
+    (coupon: Coupon) => {
+      setCoupons((prev) => {
+        const exists = prev.some((c) => c.id === coupon.id);
+        return exists
+          ? prev.map((c) => (c.id === coupon.id ? coupon : c))
+          : [coupon, ...prev];
+      });
+      showToast(`Coupon ${coupon.code} saved`);
+    },
+    [showToast]
+  );
+
+  const deleteCoupon = useCallback(
+    (couponId: string) => {
+      setCoupons((prev) => prev.filter((c) => c.id !== couponId));
+      showToast('Coupon removed', 'info');
+    },
+    [showToast]
+  );
+
+  const updateSettings = useCallback(
+    (updates: Partial<MarketplaceSettings>) => {
+      const lang = stateRef.current.language;
+      setSettings((prev) => ({ ...prev, ...updates }));
+      showToast(lang === 'bn' ? 'সেটিংস সংরক্ষিত হয়েছে' : 'Settings updated');
+    },
+    [showToast]
+  );
+
+  const saveHeroSlides = useCallback(
+    (slides: HeroSlide[]) => {
+      setHeroSlides(slides);
+      showToast('Promotional banners updated');
+    },
+    [showToast]
+  );
+
+  const deleteReview = useCallback(
+    (reviewId: string) => {
+      const { reviews: currentReviews, language: lang } = stateRef.current;
+      const target = currentReviews.find((r) => r.id === reviewId);
+      setReviews((prev) => prev.filter((r) => r.id !== reviewId));
+      if (target) {
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === target.productId
+              ? { ...p, reviewCount: Math.max(0, p.reviewCount - 1) }
+              : p
+          )
+        );
+      }
+      showToast(lang === 'bn' ? 'রিভিউ মুছে ফেলা হয়েছে' : 'Review removed', 'info');
+    },
+    [showToast]
+  );
+
+  const resetAllDemoData = useCallback(() => {
     clearAllPersistedState();
     setCategories(INITIAL_CATEGORIES);
     setSellers(INITIAL_SELLERS);
@@ -771,75 +953,151 @@ export const BazarioProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setCart([]);
     setAppliedCouponCode('');
     showToast('Demo marketplace reset to initial state', 'info');
-  };
+  }, [showToast]);
+
+  const actionsValue = useMemo<BazarioActionsValue>(
+    () => ({
+      setLanguage,
+      toggleLanguage,
+      setRole,
+      setActiveSellerId,
+      setCurrentCustomerId,
+      setIsLoggedIn,
+      showToast,
+      addToCart,
+      updateCartQuantity,
+      toggleCartItemSelected,
+      toggleSelectAllCart,
+      removeFromCart,
+      clearSelectedCartItems,
+      toggleWishlist,
+      recordProductView,
+      addSearchHistory,
+      applyCoupon,
+      clearCoupon,
+      placeOrder,
+      addReview,
+      updateCustomerProfile,
+      addCustomerAddress,
+      deleteCustomerAddress,
+      registerCustomer,
+      saveSellerProduct,
+      deleteSellerProduct,
+      updateSellerProfile,
+      submitSellerApplication,
+      updateOrderStatus,
+      updateSellerStatus,
+      updateProductStatus,
+      saveCategory,
+      saveCoupon,
+      deleteCoupon,
+      updateSettings,
+      saveHeroSlides,
+      deleteReview,
+      resetAllDemoData,
+    }),
+    [
+      setLanguage,
+      toggleLanguage,
+      setRole,
+      showToast,
+      addToCart,
+      updateCartQuantity,
+      toggleCartItemSelected,
+      toggleSelectAllCart,
+      removeFromCart,
+      clearSelectedCartItems,
+      toggleWishlist,
+      recordProductView,
+      addSearchHistory,
+      applyCoupon,
+      clearCoupon,
+      placeOrder,
+      addReview,
+      updateCustomerProfile,
+      addCustomerAddress,
+      deleteCustomerAddress,
+      registerCustomer,
+      saveSellerProduct,
+      deleteSellerProduct,
+      updateSellerProfile,
+      submitSellerApplication,
+      updateOrderStatus,
+      updateSellerStatus,
+      updateProductStatus,
+      saveCategory,
+      saveCoupon,
+      deleteCoupon,
+      updateSettings,
+      saveHeroSlides,
+      deleteReview,
+      resetAllDemoData,
+    ]
+  );
+
+  const contextValue = useMemo<BazarioContextValue>(
+    () => ({
+      language,
+      role,
+      activeSellerId,
+      currentCustomerId,
+      isLoggedIn,
+      categories,
+      sellers,
+      products,
+      reviews,
+      orders,
+      customers,
+      coupons,
+      heroSlides,
+      settings,
+      cart,
+      wishlist,
+      wishlistSet,
+      recentlyViewed,
+      searchHistory,
+      appliedCouponCode,
+      getSellerById,
+      getCategoryBySlug,
+      getProductById,
+      ...actionsValue,
+    }),
+    [
+      language,
+      role,
+      activeSellerId,
+      currentCustomerId,
+      isLoggedIn,
+      categories,
+      sellers,
+      products,
+      reviews,
+      orders,
+      customers,
+      coupons,
+      heroSlides,
+      settings,
+      cart,
+      wishlist,
+      wishlistSet,
+      recentlyViewed,
+      searchHistory,
+      appliedCouponCode,
+      getSellerById,
+      getCategoryBySlug,
+      getProductById,
+      actionsValue,
+    ]
+  );
 
   return (
-    <BazarioContext.Provider
-      value={{
-        language,
-        setLanguage,
-        toggleLanguage,
-        role,
-        setRole,
-        activeSellerId,
-        setActiveSellerId,
-        currentCustomerId,
-        setCurrentCustomerId,
-        isLoggedIn,
-        setIsLoggedIn,
-        categories,
-        sellers,
-        products,
-        reviews,
-        orders,
-        customers,
-        coupons,
-        heroSlides,
-        settings,
-        cart,
-        wishlist,
-        recentlyViewed,
-        searchHistory,
-        appliedCouponCode,
-        toasts,
-        showToast,
-        getSellerById,
-        getCategoryBySlug,
-        addToCart,
-        updateCartQuantity,
-        toggleCartItemSelected,
-        toggleSelectAllCart,
-        removeFromCart,
-        clearSelectedCartItems,
-        toggleWishlist,
-        recordProductView,
-        addSearchHistory,
-        applyCoupon,
-        clearCoupon,
-        placeOrder,
-        addReview,
-        updateCustomerProfile,
-        addCustomerAddress,
-        deleteCustomerAddress,
-        registerCustomer,
-        saveSellerProduct,
-        deleteSellerProduct,
-        updateSellerProfile,
-        submitSellerApplication,
-        updateOrderStatus,
-        updateSellerStatus,
-        updateProductStatus,
-        saveCategory,
-        saveCoupon,
-        deleteCoupon,
-        updateSettings,
-        saveHeroSlides,
-        deleteReview,
-        resetAllDemoData,
-      }}
-    >
-      {children}
-    </BazarioContext.Provider>
+    <BazarioActionsContext.Provider value={actionsValue}>
+      <BazarioContext.Provider value={contextValue}>
+        <BazarioToastContext.Provider value={toasts}>
+          {children}
+        </BazarioToastContext.Provider>
+      </BazarioContext.Provider>
+    </BazarioActionsContext.Provider>
   );
 };
 
@@ -849,4 +1107,16 @@ export function useBazario(): BazarioContextValue {
     throw new Error('useBazario must be used inside BazarioProvider');
   }
   return ctx;
+}
+
+export function useBazarioActions(): BazarioActionsValue {
+  const ctx = useContext(BazarioActionsContext);
+  if (!ctx) {
+    throw new Error('useBazarioActions must be used inside BazarioProvider');
+  }
+  return ctx;
+}
+
+export function useBazarioToasts(): ToastItem[] {
+  return useContext(BazarioToastContext);
 }

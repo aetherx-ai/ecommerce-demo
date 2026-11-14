@@ -68,3 +68,9 @@
     scroll-behavior: auto !important;
   }
 }
+
+.below-fold-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
+}
+

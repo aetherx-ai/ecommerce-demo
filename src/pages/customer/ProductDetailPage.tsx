@@ -24,9 +24,9 @@ export const ProductDetailPage: React.FC = () => {
     language,
     products,
     reviews,
-    sellers,
     settings,
-    wishlist,
+    wishlistSet,
+    getSellerById,
     toggleWishlist,
     addToCart,
     recordProductView,
@@ -56,17 +56,33 @@ export const ProductDetailPage: React.FC = () => {
     setQuantity(1);
     recordProductView(product.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [product.id]);
+  }, [product.id, product.colors, product.sizes, recordProductView]);
 
-  const seller = sellers.find((s) => s.id === product.sellerId);
-  const isWishlisted = wishlist.includes(product.id);
-  const productReviews = reviews.filter((r) => r.productId === product.id);
-  const relatedProducts = products
-    .filter((p) => p.categorySlug === product.categorySlug && p.id !== product.id && p.status === 'approved')
-    .slice(0, 4);
-  const frequentlyBought = products
-    .filter((p) => p.id !== product.id && p.status === 'approved')
-    .slice(0, 2);
+  const seller = getSellerById(product.sellerId);
+  const isWishlisted = wishlistSet.has(product.id);
+  const productReviews = useMemo(
+    () => reviews.filter((r) => r.productId === product.id),
+    [reviews, product.id]
+  );
+  const relatedProducts = useMemo(
+    () =>
+      products
+        .filter(
+          (p) =>
+            p.categorySlug === product.categorySlug &&
+            p.id !== product.id &&
+            p.status === 'approved'
+        )
+        .slice(0, 4),
+    [products, product.categorySlug, product.id]
+  );
+  const frequentlyBought = useMemo(
+    () =>
+      products
+        .filter((p) => p.id !== product.id && p.status === 'approved')
+        .slice(0, 2),
+    [products, product.id]
+  );
 
   const title = getText(product.name, language);
   const isOutOfStock = product.stock <= 0;
@@ -96,7 +112,7 @@ export const ProductDetailPage: React.FC = () => {
           {product.categorySlug}
         </Link>
         <span>/</span>
-        <span className="text-[#202124] font-medium truncate max-w-xs">{title}</span>
+        <span className="text-[#202124] font-medium truncate max-w-[180px] sm:max-w-xs">{title}</span>
       </nav>
 
       {/* Main Product Grid */}
@@ -111,7 +127,8 @@ export const ProductDetailPage: React.FC = () => {
             <ResilientImage
               src={product.images[selectedImage] ?? product.images[0]}
               alt={title}
-              loading="eager"
+              priority
+              sizes="(max-width: 1024px) 100vw, 560px"
               className={`w-full h-full object-cover transition-transform duration-300 ${
                 zoomed ? 'scale-125' : 'scale-100'
               }`}
@@ -133,7 +150,7 @@ export const ProductDetailPage: React.FC = () => {
                   selectedImage === i ? 'border-[#F85606] ring-2 ring-[#F85606]/30' : 'border-[#E5E7EB]'
                 }`}
               >
-                <ResilientImage src={img} alt="" className="w-full h-full object-cover" />
+                <ResilientImage src={img} alt="" sizes="64px" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
@@ -404,9 +421,9 @@ export const ProductDetailPage: React.FC = () => {
             </h2>
             <div className="border border-[#E5E7EB] rounded-lg divide-y divide-[#E5E7EB] text-xs">
               {Object.entries(product.specifications).map(([key, val]) => (
-                <div key={key} className="grid grid-cols-3 p-3">
+                <div key={key} className="grid grid-cols-1 sm:grid-cols-3 gap-0.5 sm:gap-2 p-3">
                   <span className="font-medium text-[#6B7280]">{key}</span>
-                  <span className="col-span-2 text-[#202124] font-medium">{val}</span>
+                  <span className="sm:col-span-2 text-[#202124] font-medium">{val}</span>
                 </div>
               ))}
             </div>

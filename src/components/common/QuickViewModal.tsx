@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ExternalLink, Heart, Minus, Plus, ShoppingCart, Star, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useBazario } from '../../contexts/BazarioContext';
@@ -17,6 +17,14 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, onClose
   const [selectedSize, setSelectedSize] = useState(product?.sizes[0] ?? 'Standard');
   const [quantity, setQuantity] = useState(1);
 
+  useEffect(() => {
+    if (product) {
+      setSelectedColor(product.colors[0] ?? 'Default');
+      setSelectedSize(product.sizes[0] ?? 'Standard');
+      setQuantity(1);
+    }
+  }, [product]);
+
   if (!product) return null;
 
   const seller = getSellerById(product.sellerId);
@@ -24,11 +32,11 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, onClose
   const title = getText(product.name, language);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs">
       <div
         role="dialog"
         aria-label={title}
-        className="bg-white rounded-xl border border-[#E5E7EB] w-full max-w-2xl overflow-hidden shadow-2xl grid grid-cols-1 md:grid-cols-2"
+        className="bg-white rounded-xl border border-[#E5E7EB] w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl grid grid-cols-1 md:grid-cols-2"
       >
         <div className="relative bg-[#F5F6FA] aspect-[4/3] md:aspect-auto">
           <ResilientImage

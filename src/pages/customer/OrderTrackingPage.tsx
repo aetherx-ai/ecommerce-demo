@@ -162,7 +162,7 @@ export const OrderTrackingPage: React.FC = () => {
               </span>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
               {TIMELINE_STEPS.map((st, idx) => {
                 const completed = idx <= currentStepIdx;
                 return (

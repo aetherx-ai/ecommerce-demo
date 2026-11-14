@@ -246,8 +246,8 @@ export const CustomerAccountPage: React.FC = () => {
         <section className="lg:col-span-9 space-y-6">
           {activeTab === 'dashboard' && (
             <>
-              <div className="bg-white border border-[#E5E7EB] rounded-xl p-6">
-                <h1 className="text-xl font-bold text-[#172337]">
+              <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 sm:p-6">
+                <h1 className="text-lg sm:text-xl font-bold text-[#172337]">
                   {language === 'bn'
                     ? `স্বাগতম, ${currentCustomer.name}`
                     : `Welcome back, ${currentCustomer.name}`}
@@ -288,7 +288,7 @@ export const CustomerAccountPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white border border-[#E5E7EB] rounded-xl p-6">
+              <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 sm:p-6">
                 <h2 className="text-base font-bold text-[#172337] mb-4">
                   {language === 'bn' ? 'সাম্প্রতিক অর্ডার' : 'Recent Orders'}
                 </h2>
@@ -380,7 +380,7 @@ export const CustomerAccountPage: React.FC = () => {
           )}
 
           {activeTab === 'orders' && (
-            <div className="bg-white border border-[#E5E7EB] rounded-xl p-6 space-y-4">
+            <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 sm:p-6 space-y-4">
               <h2 className="text-lg font-bold text-[#172337]">
                 {language === 'bn' ? 'আমার সকল অর্ডার' : 'My Order History'}
               </h2>
@@ -425,7 +425,7 @@ export const CustomerAccountPage: React.FC = () => {
                   {language === 'bn' ? 'উইশলিস্ট খালি' : 'Your wishlist is empty'}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
                   {wishlistedProducts.map((p) => (
                     <ProductCard key={p.id} product={p} />
                   ))}
@@ -436,7 +436,7 @@ export const CustomerAccountPage: React.FC = () => {
 
           {activeTab === 'addresses' && (
             <div className="space-y-4">
-              <div className="bg-white border border-[#E5E7EB] rounded-xl p-6 space-y-4">
+              <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 sm:p-6 space-y-4">
                 <h2 className="text-lg font-bold text-[#172337]">
                   {language === 'bn' ? 'সংরক্ষিত ঠিকানাসমূহ' : 'Saved Bangladesh Addresses'}
                 </h2>
@@ -540,7 +540,7 @@ export const CustomerAccountPage: React.FC = () => {
               <h2 className="text-lg font-bold text-[#172337]">
                 {language === 'bn' ? 'সম্প্রতি দেখা পণ্য' : 'Recently Viewed'}
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
                 {recentProducts.map((p) => (
                   <ProductCard key={p.id} product={p} />
                 ))}

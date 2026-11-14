@@ -21,11 +21,11 @@ export const CartPage: React.FC = () => {
   const {
     language,
     cart,
-    products,
-    sellers,
     coupons,
     settings,
     appliedCouponCode,
+    getProductById,
+    getSellerById,
     updateCartQuantity,
     toggleCartItemSelected,
     toggleSelectAllCart,
@@ -50,15 +50,15 @@ export const CartPage: React.FC = () => {
   }, [cart]);
 
   const allSelected = cart.length > 0 && cart.every((i) => i.selected);
-  const selectedItems = cart.filter((i) => i.selected);
+  const selectedItems = useMemo(() => cart.filter((i) => i.selected), [cart]);
 
   const subtotal = useMemo(
     () =>
       selectedItems.reduce((sum, item) => {
-        const prod = products.find((p) => p.id === item.productId);
+        const prod = getProductById(item.productId);
         return sum + (prod ? prod.discountedPrice * item.quantity : 0);
       }, 0),
-    [selectedItems, products]
+    [selectedItems, getProductById]
   );
 
   const activeCoupon = coupons.find(
@@ -160,7 +160,7 @@ export const CartPage: React.FC = () => {
 
           {/* Seller Groups */}
           {groupedBySeller.map(([sellerId, items]) => {
-            const seller = sellers.find((s) => s.id === sellerId);
+            const seller = getSellerById(sellerId);
             return (
               <div
                 key={sellerId}
@@ -179,7 +179,7 @@ export const CartPage: React.FC = () => {
 
                 <div className="divide-y divide-[#F1F3F5]">
                   {items.map((item) => {
-                    const prod = products.find((p) => p.id === item.productId);
+                    const prod = getProductById(item.productId);
                     if (!prod) return null;
                     const title = getText(prod.name, language);
                     return (
@@ -202,6 +202,7 @@ export const CartPage: React.FC = () => {
                             <ResilientImage
                               src={prod.images[0]}
                               alt={title}
+                              sizes="80px"
                               className="w-full h-full object-cover"
                             />
                           </Link>
@@ -221,7 +222,7 @@ export const CartPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between sm:justify-end gap-4 pl-7 sm:pl-0">
+                        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 pl-7 sm:pl-0">
                           <div className="inline-flex items-center border border-[#E5E7EB] rounded-md">
                             <button
                               type="button"
@@ -244,18 +245,20 @@ export const CartPage: React.FC = () => {
                             </button>
                           </div>
 
-                          <span className="text-sm font-bold text-[#172337] tabular-nums min-w-[80px] text-right">
-                            {formatBDT(prod.discountedPrice * item.quantity, language)}
-                          </span>
+                          <div className="flex items-center gap-2 ml-auto sm:ml-0">
+                            <span className="text-sm font-bold text-[#172337] tabular-nums text-right">
+                              {formatBDT(prod.discountedPrice * item.quantity, language)}
+                            </span>
 
-                          <button
-                            type="button"
-                            aria-label="Remove item"
-                            onClick={() => removeFromCart(item.id)}
-                            className="p-1.5 text-[#9CA3AF] hover:text-[#DC2626]"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            <button
+                              type="button"
+                              aria-label="Remove item"
+                              onClick={() => removeFromCart(item.id)}
+                              className="p-1.5 text-[#9CA3AF] hover:text-[#DC2626]"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -284,7 +287,7 @@ export const CartPage: React.FC = () => {
                 value={couponInput}
                 onChange={(e) => setCouponInput(e.target.value)}
                 placeholder="BAZARIO10 / EID500"
-                className="flex-1 px-3 py-2 text-xs font-mono uppercase border border-[#E5E7EB] rounded-md focus:outline-none focus:border-[#F85606]"
+                className="min-w-0 flex-1 px-3 py-2 text-xs font-mono uppercase border border-[#E5E7EB] rounded-md focus:outline-none focus:border-[#F85606]"
               />
               <button
                 type="submit"

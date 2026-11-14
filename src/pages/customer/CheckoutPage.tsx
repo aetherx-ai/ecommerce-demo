@@ -217,7 +217,7 @@ export const CheckoutPage: React.FC = () => {
       </h1>
 
       {/* 4-Step Progress Indicator */}
-      <div className="grid grid-cols-4 gap-2 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
         {[
           { num: 1, bn: '১. তথ্য', en: '1. Details' },
           { num: 2, bn: '২. ঠিকানা', en: '2. Address' },
@@ -622,19 +622,19 @@ export const CheckoutPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="pt-3 flex items-center justify-between gap-4">
+              <div className="pt-3 flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="px-4 py-2.5 rounded-lg border border-[#E5E7EB] text-xs font-medium"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-lg border border-[#E5E7EB] text-xs font-medium text-center"
                 >
                   ← {language === 'bn' ? 'পিছনে' : 'Back'}
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 sm:flex-none px-8 py-3 min-h-[46px] rounded-lg bg-[#F85606] hover:bg-[#E04A00] text-white text-sm font-bold inline-flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto px-6 sm:px-8 py-3 min-h-[46px] rounded-lg bg-[#F85606] hover:bg-[#E04A00] text-white text-sm font-bold inline-flex items-center justify-center gap-2"
                 >
-                  <ShieldCheck className="w-4 h-4" />
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
                   <span>
                     {language === 'bn'
                       ? `অর্ডার নিশ্চিত করুন (${formatBDT(total, 'bn')})`

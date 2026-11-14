@@ -53,7 +53,7 @@ export const SellerStorefrontPage: React.FC = () => {
     <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Store Banner */}
       <div
-        className="rounded-xl p-6 sm:p-8 text-white flex flex-col md:flex-row md:items-center justify-between gap-6"
+        className="rounded-xl p-4 sm:p-8 text-white flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6"
         style={{ backgroundColor: seller.bannerColor }}
       >
         <div className="flex items-start sm:items-center gap-4">
@@ -109,11 +109,11 @@ export const SellerStorefrontPage: React.FC = () => {
       </div>
 
       {/* Category Filter Bar */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
         <button
           type="button"
           onClick={() => setStoreCat('all')}
-          className={`px-3.5 py-2 rounded-lg text-xs font-medium border ${
+          className={`px-3.5 py-2 rounded-lg text-xs font-medium border whitespace-nowrap shrink-0 ${
             storeCat === 'all'
               ? 'bg-[#F85606] text-white border-[#F85606]'
               : 'bg-white text-[#202124] border-[#E5E7EB]'
@@ -128,7 +128,7 @@ export const SellerStorefrontPage: React.FC = () => {
               key={cSlug}
               type="button"
               onClick={() => setStoreCat(cSlug)}
-              className={`px-3.5 py-2 rounded-lg text-xs font-medium border ${
+              className={`px-3.5 py-2 rounded-lg text-xs font-medium border whitespace-nowrap shrink-0 ${
                 storeCat === cSlug
                   ? 'bg-[#F85606] text-white border-[#F85606]'
                   : 'bg-white text-[#202124] border-[#E5E7EB]'
@@ -146,7 +146,7 @@ export const SellerStorefrontPage: React.FC = () => {
           <h2 className="text-base sm:text-lg font-bold text-[#172337] mb-3">
             {language === 'bn' ? 'স্টোরের সেরা বিক্রিত পণ্য' : 'Store Best Sellers'}
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
             {bestSellers.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
@@ -160,7 +160,7 @@ export const SellerStorefrontPage: React.FC = () => {
           {language === 'bn' ? 'স্টোর ক্যাটালগ' : 'Store Catalog'} (
           {formatNum(filteredProducts.length, language)})
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
           {filteredProducts.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}

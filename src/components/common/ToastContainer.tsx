@@ -1,9 +1,9 @@
 import React from 'react';
 import { AlertCircle, CheckCircle2, Info } from 'lucide-react';
-import { useBazario } from '../../contexts/BazarioContext';
+import { useBazarioToasts } from '../../contexts/BazarioContext';
 
-export const ToastContainer: React.FC = () => {
-  const { toasts } = useBazario();
+export const ToastContainer: React.FC = React.memo(() => {
+  const toasts = useBazarioToasts();
 
   if (toasts.length === 0) return null;
 
@@ -29,4 +29,6 @@ export const ToastContainer: React.FC = () => {
       ))}
     </div>
   );
-};
+});
+
+ToastContainer.displayName = 'ToastContainer';
